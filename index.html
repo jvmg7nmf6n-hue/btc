@@ -538,6 +538,7 @@
     </div>
     <div class="price-box">
       <div class="price" id="price">—</div>
+      <div id="liveStat" style="font-size:10px;font-family:var(--mono);margin:3px 0;letter-spacing:.02em">connecting&hellip;</div>
       <div class="chg" id="chg">loading…</div>
       <div class="chg" id="chg24" style="font-size:11px;margin-top:2px"></div>
       <div class="status"><span class="dot" id="dot"></span><span id="src">init</span></div>
@@ -1352,7 +1353,7 @@ function renderFutures(){
     '<div class="m"><div class="k">Long/Short</div><div class="v">'+lsTxt+'</div><div class="s">'+lsSub+'</div></div>';
 }
 function updateHeader(){const c=state.candles;if(!c.length)return;const last=c[c.length-1].close,first=c[0].close,chg=(last-first)/first*100;
-  $('#price').textContent='$'+fmtAx(last);const e=$('#chg');e.textContent=(chg>=0?'+':'')+fmt(chg,2)+'% over window';e.className='chg '+(chg>=0?'up':'down');
+  $('#price').textContent='$'+fmt(last,last<1?6:2);const e=$('#chg');e.textContent=(chg>=0?'+':'')+fmt(chg,2)+'% over window';e.className='chg '+(chg>=0?'up':'down');
   const co=COINS.find(x=>x.sym===activeSym);if($('#pairName'))$('#pairName').textContent=activeSym+'USDT';if($('#futPair'))$('#futPair').textContent=activeSym+'USDT';if($('#pairSub'))$('#pairSub').innerHTML=(co?co.name:activeSym)+(activeSym!=='BTC'?' &middot; <span style="color:var(--gold);cursor:pointer" id="pairReset">&#8635; reset to BTC</span>':' &middot; Technical Terminal');if(co){const p=co.chg*100;const e2=$('#chg24');e2.textContent=(p>=0?'+':'')+fmt(p,2)+'% · 30m';e2.className='chg '+(p>=0?'up':'down');}}
 
 async function tryLive(tf){
@@ -2118,6 +2119,29 @@ async function liveRefresh(){
   tryLiveMulti();loadMTF();
 }
 setInterval(liveRefresh,600000); // every 10 minutes
+/* ---- fast live price poll (every 15s) + status indicator ---- */
+let lastPriceTs=0,lastPriceSrc='',priceBusy=false;
+async function fetchTick(){const sym=activeSym;const srcs=[
+  {u:'https://api.binance.com/api/v3/ticker/price?symbol='+sym+'USDT',p:j=>(j&&j.price)?+j.price:null,n:'Binance'},
+  {u:'https://data-api.binance.vision/api/v3/ticker/price?symbol='+sym+'USDT',p:j=>(j&&j.price)?+j.price:null,n:'Binance'},
+  {u:'https://www.okx.com/api/v5/market/ticker?instId='+sym+'-USDT',p:j=>(j&&j.data&&j.data[0])?+j.data[0].last:null,n:'OKX'},
+  {u:'https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name='+sym+'_USDT',p:j=>(j&&j.result&&j.result.data&&j.result.data[0])?+(j.result.data[0].a||j.result.data[0].k):null,n:'Crypto.com'}];
+  for(const sc of srcs){try{const r=await fetch(sc.u,{cache:'no-store'});if(!r.ok)continue;const jj=await r.json();const p=sc.p(jj);if(p&&isFinite(p))return {price:p,src:sc.n};}catch(e){}}return null;}
+async function priceTick(){if(!state.live||priceBusy||wsConnected)return;priceBusy=true;try{const t=await fetchTick();if(t&&t.price){const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=t.price;if(t.price>last.high)last.high=t.price;if(t.price<last.low)last.low=t.price;}if(analysis)analysis.price=t.price;lastPriceTs=Date.now();lastPriceSrc=t.src;updateHeader();if(typeof demoTick==='function')demoTick();}}catch(e){}priceBusy=false;updateLiveStat();}
+function updateLiveStat(){const el=$('#liveStat');if(!el)return;if(!state.live){el.innerHTML='<span style="color:var(--dim)">offline \u2014 host on https for live price</span>';return;}if(!lastPriceTs){el.innerHTML='<span style="color:var(--gold)">\u25CF</span> connecting\u2026';return;}const ago=Math.round((Date.now()-lastPriceTs)/1000);const fresh=ago<40;el.innerHTML='<span style="color:'+(fresh?'var(--green)':'var(--red)')+'">\u25CF</span> '+(fresh?'live':'stale')+' \u00b7 '+(ago<2?'just now':ago+'s ago')+' \u00b7 '+lastPriceSrc;}
+setInterval(priceTick,5000);setInterval(updateLiveStat,1000);setTimeout(priceTick,1500);
+/* ---- real-time WebSocket price stream (Binance) with poll fallback ---- */
+let priceWS=null,wsSym='',wsConnected=false,demoThrottle=0;
+function stopWS(){try{if(priceWS){priceWS.onopen=priceWS.onmessage=priceWS.onerror=priceWS.onclose=null;priceWS.close();}}catch(e){}priceWS=null;wsConnected=false;}
+function startWS(){if(!state.live)return;if(typeof WebSocket==='undefined')return;stopWS();const sym=activeSym;wsSym=sym;
+  try{priceWS=new WebSocket('wss://stream.binance.com:9443/ws/'+sym.toLowerCase()+'usdt@trade');
+    priceWS.onopen=function(){wsConnected=true;};
+    priceWS.onmessage=function(ev){try{const m=JSON.parse(ev.data);const p=+m.p;if(!p||!isFinite(p))return;wsConnected=true;lastPriceTs=Date.now();lastPriceSrc='Binance \u00b7 stream';const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=p;if(p>last.high)last.high=p;if(p<last.low)last.low=p;}if(analysis)analysis.price=p;const el=$('#price');if(el)el.textContent='$'+fmt(p,p<1?6:2);const now=Date.now();if(now-demoThrottle>=1000){demoThrottle=now;if(typeof demoTick==='function')demoTick();updateLiveStat();}}catch(e){}};
+    priceWS.onerror=function(){wsConnected=false;};
+    priceWS.onclose=function(){wsConnected=false;};
+  }catch(e){wsConnected=false;}}
+function wsWatch(){if(!state.live)return;if(wsSym!==activeSym){startWS();return;}if(!priceWS||priceWS.readyState>1||!wsConnected)startWS();}
+setInterval(wsWatch,5000);setTimeout(startWS,1800);
 
 /* ---------- TRADING JOURNAL ---------- */
 let jDir='long';
