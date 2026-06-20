@@ -516,6 +516,16 @@
   .dtool:hover{border-color:var(--blue);color:var(--blue)}
   .dtool.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .dt-sep{width:1px;height:16px;background:var(--line);margin:0 3px}
+  /* ---- candle breadth ---- */
+  .breadth{padding:10px 14px;border-top:1px solid var(--line)}
+  .breadth-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+  .bh-t{font-size:12px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+  .bh-look{display:flex;gap:4px}
+  .bd-bar{display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--panel-2);margin:8px 0}
+  .bd-row{display:flex;justify-content:space-between;font-size:12px;margin:3px 0;color:var(--txt)}
+  .bd-row .k{color:var(--dim)}
+  .bd-verdict{font-weight:700;font-size:13px;margin-top:6px}
+  .bd-note{font-size:10.5px;color:var(--dim);margin-top:6px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -613,6 +623,12 @@
       <button class="dtool" id="dtClear" style="color:var(--red)">Clear</button>
     </div>
     <div class="canvas-wrap"><canvas id="cMain"></canvas><canvas id="cDraw" class="cross-cv"></canvas><canvas id="cCross" class="cross-cv"></canvas><div class="ctip" id="ctip"></div></div>
+    <div class="breadth" id="breadthBox">
+      <div class="breadth-head"><span class="bh-t">Candle Breadth</span>
+        <div class="bh-look" id="bdLook"><button class="chip" data-bd="12">12</button><button class="chip on" data-bd="24">24</button><button class="chip" data-bd="50">50</button><button class="chip" data-bd="100">100</button></div>
+      </div>
+      <div id="breadthBody"></div>
+    </div>
     <div class="sub-toggles" id="subToggles"><span class="st-lbl">Panels</span><button class="chip stog on" data-sub="subVol">Volume</button><button class="chip stog on" data-sub="subRsi">RSI</button><button class="chip stog on" data-sub="subMacd">MACD</button></div>
     <div class="sub-chart" id="subVol"><div class="cap">Volume</div><div class="canvas-wrap"><canvas id="cVol" style="height:90px"></canvas></div></div>
     <div class="sub-chart" id="subRsi"><div class="cap">RSI (14)</div><div class="canvas-wrap"><canvas id="cRsi"></canvas></div></div>
@@ -1311,6 +1327,32 @@ function drawSub(id,series,opts){
   if(lv!=null){ctx.fillStyle=COL.dim;ctx.textAlign='left';ctx.fillText(fmt(lv,opts.dec??1),PADL+plotW+5,y(lv));}
 }
 
+function fmtSpan(sec){const h=sec/3600;if(h<1)return Math.round(sec/60)+'m';if(h<48)return (Math.round(h*10)/10)+'h';return Math.round(h/24)+'d';}
+let bdLook=24;
+function renderBreadth(){
+  const box=$('#breadthBody');if(!box)return;
+  const c=state.candles;if(!c||!c.length){box.innerHTML='';return;}
+  const N=Math.min(bdLook,c.length);const win=c.slice(c.length-N);
+  let g=0,r=0,gv=0,rv=0;
+  win.forEach(k=>{const up=k.close>=k.open;if(up){g++;gv+=(k.volume||0);}else{r++;rv+=(k.volume||0);}});
+  const gPct=N?g/N*100:0;
+  const net=win[0].open?((win[N-1].close-win[0].open)/win[0].open*100):0;
+  const volTot=gv+rv;const gvPct=volTot?gv/volTot*100:50;
+  const countBull=gPct>=55,countBear=gPct<=45;let verd,vcol;
+  if(countBull&&net>0){verd='Bullish bias';vcol='var(--green)';}
+  else if(countBear&&net<0){verd='Bearish bias';vcol='var(--red)';}
+  else if((countBull&&net<0)||(countBear&&net>0)){verd='Mixed \u2014 count aur price alag';vcol='var(--gold)';}
+  else{verd='Balanced / neutral';vcol='var(--muted)';}
+  const span=fmtSpan(N*(STEP[state.tf]||3600));
+  box.innerHTML=
+    '<div class="bd-bar"><div style="width:'+gPct.toFixed(1)+'%;background:var(--green)"></div><div style="width:'+(100-gPct).toFixed(1)+'%;background:var(--red)"></div></div>'+
+    '<div class="bd-row"><span class="k">Green / Red candles</span><span><b style="color:var(--green)">'+g+'</b> / <b style="color:var(--red)">'+r+'</b> ('+gPct.toFixed(0)+'% green)</span></div>'+
+    '<div class="bd-row"><span class="k">Net price change</span><span style="color:'+(net>=0?'var(--green)':'var(--red)')+'">'+(net>=0?'+':'')+net.toFixed(2)+'%</span></div>'+
+    '<div class="bd-row"><span class="k">Green vol / Red vol</span><span><b style="color:var(--green)">'+gvPct.toFixed(0)+'%</b> / <b style="color:var(--red)">'+(100-gvPct).toFixed(0)+'%</b></span></div>'+
+    '<div class="bd-verdict" style="color:'+vcol+'">'+verd+'</div>'+
+    '<div class="bd-note">Last '+N+' candles ('+state.tf+', \u2248'+span+'). Count = momentum/bias \u2014 prediction nahi. Net change aur volume isay confirm/deny karte hain.</div>';
+}
+function bdInit(){const box=$('#bdLook');if(box)box.addEventListener('click',e=>{const b=e.target.closest('[data-bd]');if(!b)return;document.querySelectorAll('#bdLook .chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');bdLook=+b.dataset.bd;renderBreadth();});}
 function render(){
   const c=state.candles;if(!c.length)return;
   analysis=analyze(c);
@@ -1320,7 +1362,7 @@ function render(){
   drawSub('#cMacd',[{type:'hist',data:analysis.mac.hist},{col:COL.blue,w:1.5,data:analysis.mac.line},{col:COL.gold,w:1.5,data:analysis.mac.sig}],{zero:true,dec:1});
   renderSignals();renderScenario();renderLevels();renderFutures();slogResolve();slogRender();
   renderFearGreed();renderOppRisk();renderConfluence();renderMTF();
-  renderTVRegime();renderVolRisk();
+  renderTVRegime();renderVolRisk();renderBreadth();
   renderNowTool();
   demoTick();
   if(!calcTouched)prefillCalc();
@@ -2702,7 +2744,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
