@@ -966,7 +966,7 @@
       <button class="dtool" id="swScanBtn">Scan now</button>
       <button class="dtool" id="swAuto">Auto: off</button>
       <button class="dtool" id="swAlertBtn">Alerts off</button>
-      <button class="dtool" id="swBtBtn">Backtest active coin</button>
+      <button class="dtool" id="swBtBtn">Backtest active coin</button><button class="dtool" id="swBtAllBtn">Backtest ALL coins</button>
     </div>
     <div id="swStatus" class="sw-status">Tap &ldquo;Scan now&rdquo; to check all majors + alts for a live Sandwich setup.</div>
     <div id="swResults"></div>
@@ -1442,7 +1442,31 @@ function swBacktest(){var C=state.candles;var out=$('#swBtOut');if(!out)return;o
   function pf(x){return x===Infinity?'\u221e':x.toFixed(2);}
   function blk(t,S){return '<b>'+t+'</b><br>Trades: '+S.n+' (W '+S.w+' / L '+S.l+(S.sc?' / BE '+S.sc:'')+')<br>Win: <b style="color:'+(S.wr>=40?'var(--green)':'var(--red)')+'">'+S.wr.toFixed(0)+'%</b> &middot; Expectancy: <b style="color:'+(S.exp>0?'var(--green)':'var(--red)')+'">'+(S.exp>=0?'+':'')+S.exp.toFixed(2)+'R</b>/trade &middot; PF '+pf(S.pf)+' &middot; Max loss streak '+S.mcl;}
   out.innerHTML='<b>Backtest '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br><br>'+blk('RAW (all patterns, plain 1:2)',R)+'<br><br>'+blk('IMPROVED (trend filter + 1:1 breakeven)',I)+'<br><br><span style="color:var(--dim);font-size:10.5px"><b>Expectancy</b> = asli math: (jeet\u00d72 \u2212 haar)/trade. <b>+0.00R se upar = edge</b>. 1:2 pe break-even ~33% win. Chhota sample = shor; zyada candles/coins = behtar verdict. Past hai, future guarantee nahi.</span>';}
+async function swBacktestAll(){
+  var out=$('#swBtOut');if(!out)return;out.style.display='';
+  var tf=(typeof swScanTf!=='undefined'&&swScanTf)?swScanTf:'1h';
+  out.innerHTML='Backtest ALL coins ('+tf+') chal raha hai\u2026 thoda ruko (~10s).';
+  var coins=swCoins();var rawAll=[],impAll=[],rows=[];
+  for(var ci=0;ci<coins.length;ci++){var sym=coins[ci];var C=null;
+    try{C=await swFetch(sym,tf);}catch(e){}
+    if(C&&C.length>1&&C[0].time>C[C.length-1].time)C.sort(function(a,b){return a.time-b.time;});
+    if(!C||C.length<60){rows.push({sym:sym,n:0,exp:null});continue;}
+    var maLen=50,imp=[];
+    for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;
+      var r1=swSim(C,p,4,2,false);if(r1==='win'||r1==='loss')rawAll.push(r1);
+      var c3i=i+2,sm=0,nn=0;for(var j=Math.max(0,c3i-maLen+1);j<=c3i;j++){sm+=C[j].close;nn++;}var ma=sm/nn;
+      var tOK=(p.dir==='long')?(C[c3i].close>ma):(C[c3i].close<ma);
+      if(tOK){var r2=swSim(C,p,4,2,true);if(r2==='win'||r2==='loss'||r2==='scratch'){imp.push(r2);impAll.push(r2);}}}
+    var S=swStats(imp);rows.push({sym:sym,n:S.n,exp:S.n?S.exp:null});}
+  var AG=swStats(impAll),RG=swStats(rawAll);
+  function ec(e){return e===null?'var(--dim)':(e>0?'var(--green)':(e<0?'var(--red)':'var(--gold)'));}
+  var h='<b>Backtest ALL coins ('+tf+', ~150 candles each) \u2014 IMPROVED rules</b><br><br><table style="border-collapse:collapse;font-size:11px">';
+  rows.forEach(function(r){h+='<tr><td style="padding:1px 12px 1px 0">'+r.sym+'</td><td style="padding:1px 12px;color:var(--dim)">'+(r.n||0)+' tr</td><td style="padding:1px 0;color:'+ec(r.exp)+'">'+(r.exp===null?'\u2014':(r.exp>=0?'+':'')+r.exp.toFixed(2)+'R')+'</td></tr>';});
+  h+='</table><br><b>AGGREGATE (sab coins jama):</b><br>IMPROVED: '+AG.n+' trades \u00b7 Win '+AG.wr.toFixed(0)+'% \u00b7 Expectancy <b style="color:'+ec(AG.n?AG.exp:null)+'">'+(AG.exp>=0?'+':'')+AG.exp.toFixed(2)+'R</b> \u00b7 PF '+(AG.pf===Infinity?'\u221e':AG.pf.toFixed(2))+'<br>RAW: '+RG.n+' trades \u00b7 Exp '+(RG.exp>=0?'+':'')+RG.exp.toFixed(2)+'R';
+  h+='<br><br><span style="color:var(--dim);font-size:10.5px">Bada sample = behtar verdict. Aggregate Expectancy <b>+R consistently</b> ho to edge; ~0 ya \u2212R to strategy chhodo. Past hai, future guarantee nahi.</span>';
+  out.innerHTML=h;}
 function swInit(){
+  var ba=$('#swBtAllBtn');if(ba)ba.addEventListener('click',swBacktestAll);
   var tf=$('#swTf');if(tf)tf.addEventListener('click',function(e){var b=e.target.closest('[data-swtf]');if(!b)return;document.querySelectorAll('#swTf .chip').forEach(function(x){x.classList.remove('on');});b.classList.add('on');swScanTf=b.dataset.swtf;});
   var sb=$('#swScanBtn');if(sb)sb.addEventListener('click',swScan);
   var au=$('#swAuto');if(au)au.addEventListener('click',function(){if(swAutoTimer){clearInterval(swAutoTimer);swAutoTimer=null;au.classList.remove('on');au.textContent='Auto: off';}else{swAutoTimer=setInterval(swScan,300000);au.classList.add('on');au.textContent='Auto: ON (5m)';swScan();}});
