@@ -1389,11 +1389,11 @@ function swDetect(C,i){var c1=C[i],c2=C[i+1],c3=C[i+2];if(!c3)return null;
   if(swR(c1)&&swStrong(c1)&&swDoji(c2)&&swR(c2)&&swR(c3)&&swStrong(c3)&&c3.close<c2.low&&swLW(c3)/swRng(c3)<=0.25)return {dir:'short',i:i,c1:c1,c2:c2,c3:c3};
   return null;}
 function swLevels(p){if(p.dir==='long'){var e1=p.c2.high,e2=p.c2.low,sl=p.c1.low,risk=e1-sl;return {dir:'long',entry1:e1,entry2:e2,sl:sl,tp:e1+2*risk};}var e1b=p.c2.low,e2b=p.c2.high,slb=p.c1.high,riskb=slb-e1b;return {dir:'short',entry1:e1b,entry2:e2b,sl:slb,tp:e1b-2*riskb};}
-function swSim(C,p,W,rr){var buf=0.0005;
-  if(p.dir==='long'){var entry=p.c2.high,sl=p.c1.low*(1-buf);if(entry<=sl)return 'skip';var risk=entry-sl,tp=entry+rr*risk;
-    for(var k=p.i+3;k<=p.i+2+W&&k<C.length;k++){if(C[k].low<=entry){for(var m=k;m<C.length;m++){if(C[m].low<=sl)return 'loss';if(C[m].high>=tp)return 'win';}return 'open';}}return 'noentry';}
-  var en=p.c2.low,sl2=p.c1.high*(1+buf);if(en>=sl2)return 'skip';var risk2=sl2-en,tp2=en-rr*risk2;
-  for(var k2=p.i+3;k2<=p.i+2+W&&k2<C.length;k2++){if(C[k2].high>=en){for(var m2=k2;m2<C.length;m2++){if(C[m2].high>=sl2)return 'loss';if(C[m2].low<=tp2)return 'win';}return 'open';}}return 'noentry';}
+function swSim(C,p,W,rr,useBE){var buf=0.0005;
+  if(p.dir==='long'){var entry=p.c2.high,sl=p.c1.low*(1-buf);if(entry<=sl)return 'skip';var oneR=entry-sl,be=entry+oneR,tp=entry+rr*oneR;
+    for(var k=p.i+3;k<=p.i+2+W&&k<C.length;k++){if(C[k].low<=entry){var beH=false;for(var m=k;m<C.length;m++){var c=C[m];if(!beH){if(c.low<=sl)return 'loss';if(c.high>=tp)return 'win';if(useBE&&c.high>=be)beH=true;}else{if(c.low<=entry)return 'scratch';if(c.high>=tp)return 'win';}}return 'open';}}return 'noentry';}
+  var en=p.c2.low,sl2=p.c1.high*(1+buf);if(en>=sl2)return 'skip';var oneR2=sl2-en,be2=en-oneR2,tp2=en-rr*oneR2;
+  for(var k2=p.i+3;k2<=p.i+2+W&&k2<C.length;k2++){if(C[k2].high>=en){var beH2=false;for(var m2=k2;m2<C.length;m2++){var c2=C[m2];if(!beH2){if(c2.high>=sl2)return 'loss';if(c2.low<=tp2)return 'win';if(useBE&&c2.low<=be2)beH2=true;}else{if(c2.high>=en)return 'scratch';if(c2.low<=tp2)return 'win';}}return 'open';}}return 'noentry';}
 function swCoins(){return [].concat(MARKETS.majors,MARKETS.alts).map(function(x){return x.sym;});}
 async function swFetch(sym,tf){
   var bn={'15m':'15m','30m':'30m','1h':'1h'},ok={'15m':'15m','30m':'30m','1h':'1H'},cd={'15m':'15m','30m':'30m','1h':'1h'};var lim=150;
@@ -1419,7 +1419,8 @@ async function swScan(){
   var hits=[];
   for(var ci=0;ci<coins.length;ci++){var sym=coins[ci];var C=null;try{C=await swFetch(sym,swScanTf);}catch(e){}
     if(!C||C.length<6)continue;
-    for(var i=C.length-3;i>=Math.max(0,C.length-6);i--){var p=swDetect(C,i);if(p){var L=swLevels(p);var last=C[C.length-1].close;var status;
+    var _mn=Math.min(50,C.length),_ms=0;for(var _z=C.length-_mn;_z<C.length;_z++)_ms+=C[_z].close;var _ma=_ms/_mn;
+    for(var i=C.length-3;i>=Math.max(0,C.length-6);i--){var p=swDetect(C,i);if(p){var _c3=C[i+2];var _tok=(p.dir==='long')?(_c3.close>_ma):(_c3.close<_ma);if(!_tok)continue;var L=swLevels(p);var last=C[C.length-1].close;var status;
       if(p.dir==='long')status=(last<=L.entry1&&last>=L.entry2)?'ENTRY ZONE':(last>L.entry1?'wait pullback':'missed');
       else status=(last>=L.entry1&&last<=L.entry2)?'ENTRY ZONE':(last<L.entry1?'wait pullback':'missed');
       hits.push({sym:sym,dir:p.dir,lv:L,c3t:p.c3.time,status:status});break;}}
@@ -1428,12 +1429,19 @@ async function swScan(){
   hits.forEach(function(h){var key=h.sym+':'+h.dir+':'+h.c3t;if(!swSeen[key]){swSeen[key]=1;swAlertFire(h);}});
   if(st)st.textContent='Last scan '+new Date().toLocaleTimeString()+' \u2014 '+hits.length+' setup(s). (alts+majors, no memes)';
   swScanning=false;}
+function swStats(rs){var w=0,l=0,sc=0,mcl=0,ccl=0;for(var i=0;i<rs.length;i++){var r=rs[i];if(r==='win'){w++;ccl=0;}else if(r==='loss'){l++;ccl++;if(ccl>mcl)mcl=ccl;}else if(r==='scratch'){sc++;ccl=0;}}var n=w+l+sc;return {n:n,w:w,l:l,sc:sc,wr:n?w/n*100:0,exp:n?(w*2-l)/n:0,pf:l>0?(w*2)/l:(w>0?Infinity:0),mcl:mcl};}
 function swBacktest(){var C=state.candles;var out=$('#swBtOut');if(!out)return;out.style.display='';
-  if(!C||C.length<6){out.textContent='Not enough candles loaded.';return;}
-  var pats=0,win=0,loss=0,ne=0,op=0;
-  for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;pats++;var r=swSim(C,p,4,2);if(r==='win')win++;else if(r==='loss')loss++;else if(r==='noentry')ne++;else if(r==='open')op++;}
-  var res=win+loss,wr=res?Math.round(win/res*100):0;
-  out.innerHTML='<b>Backtest '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br>Patterns: '+pats+' &middot; Entered &amp; resolved: '+res+' (Win '+win+' / Loss '+loss+') &middot; No-entry: '+ne+' &middot; Still-open: '+op+(res?'<br><b style="color:'+(wr>=50?'var(--green)':'var(--red)')+'">Win rate: '+wr+'%</b> @ fixed 1:2 R:R'+'<br><span style="color:var(--dim)">Chhote sample pe yeh sirf ishaara hai \u2014 zyada history = behtar verdict.</span>':'<br><span style="color:var(--dim)">Itni history mein koi entered trade nahi \u2014 zyada candles wali coin/TF try karo.</span>');}
+  if(!C||C.length<60){out.textContent='Backtest ke liye 60+ candles chahiye \u2014 coin/TF load hone do, phir dobara dabao.';return;}
+  var maLen=50;function sma(idx){var s=0,n=0;for(var j=Math.max(0,idx-maLen+1);j<=idx;j++){s+=C[j].close;n++;}return n?s/n:C[idx].close;}
+  var raw=[],imp=[];
+  for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;
+    var r1=swSim(C,p,4,2,false);if(r1==='win'||r1==='loss')raw.push(r1);
+    var c3i=i+2,ma=sma(c3i),tOK=(p.dir==='long')?(C[c3i].close>ma):(C[c3i].close<ma);
+    if(tOK){var r2=swSim(C,p,4,2,true);if(r2==='win'||r2==='loss'||r2==='scratch')imp.push(r2);}}
+  var R=swStats(raw),I=swStats(imp);
+  function pf(x){return x===Infinity?'\u221e':x.toFixed(2);}
+  function blk(t,S){return '<b>'+t+'</b><br>Trades: '+S.n+' (W '+S.w+' / L '+S.l+(S.sc?' / BE '+S.sc:'')+')<br>Win: <b style="color:'+(S.wr>=40?'var(--green)':'var(--red)')+'">'+S.wr.toFixed(0)+'%</b> &middot; Expectancy: <b style="color:'+(S.exp>0?'var(--green)':'var(--red)')+'">'+(S.exp>=0?'+':'')+S.exp.toFixed(2)+'R</b>/trade &middot; PF '+pf(S.pf)+' &middot; Max loss streak '+S.mcl;}
+  out.innerHTML='<b>Backtest '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br><br>'+blk('RAW (all patterns, plain 1:2)',R)+'<br><br>'+blk('IMPROVED (trend filter + 1:1 breakeven)',I)+'<br><br><span style="color:var(--dim);font-size:10.5px"><b>Expectancy</b> = asli math: (jeet\u00d72 \u2212 haar)/trade. <b>+0.00R se upar = edge</b>. 1:2 pe break-even ~33% win. Chhota sample = shor; zyada candles/coins = behtar verdict. Past hai, future guarantee nahi.</span>';}
 function swInit(){
   var tf=$('#swTf');if(tf)tf.addEventListener('click',function(e){var b=e.target.closest('[data-swtf]');if(!b)return;document.querySelectorAll('#swTf .chip').forEach(function(x){x.classList.remove('on');});b.classList.add('on');swScanTf=b.dataset.swtf;});
   var sb=$('#swScanBtn');if(sb)sb.addEventListener('click',swScan);
