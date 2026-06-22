@@ -1066,7 +1066,7 @@
 
   <div class="sec-title">Signal Track Record <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">HONESTY LOG &middot; KYA DASHBOARD THEEK HAI?</span></div>
   <div class="card">
-    <div class="note" style="margin-bottom:14px">Jab bhi dashboard koi signal de, <b>"Log current signal"</b> dabayein &mdash; ye abhi ka <b>verdict, price aur Scenario ka target</b> mehfooz kar leta hai. Phir chuni hui muddat (default <b>24h</b>) ke andar agar live price us target ko <b>chhoo</b> le &rarr; <span style="color:var(--green)">HIT</span>, warna <span style="color:var(--red)">MISS</span>. Niche accuracy khud-ba-khud banti jaati hai. <b style="color:var(--gold)">Yaad rahe:</b> achhi accuracy bhi mustaqbil ki <span class="hl">guarantee nahi</span> &mdash; ye sirf dashboard ko jawabdeh rakhta hai, aur number tabhi maani rakhta hai jab <b>sample bada ho</b> (kam se kam ~20&ndash;30 logs).</div>
+    <div class="note" style="margin-bottom:14px">Jab bhi dashboard koi signal de, <b>"Log current signal"</b> dabayein &mdash; ye abhi ka <b>verdict, price aur Scenario ka target</b> mehfooz kar leta hai. Phir chuni hui muddat (default <b>24h</b>) ke andar agar price pehle <b>Target (+2&times;ATR)</b> chhoo le &rarr; <span style="color:var(--green)">WIN +2R</span>; agar pehle <b>Stop (&minus;1&times;ATR)</b> lag jaye &rarr; <span style="color:var(--red)">LOSS &minus;1R</span>; window khatam to <span style="color:var(--gold)">TIMEOUT</span> (market par close). Neeche <b>win-rate aur expectancy (R)</b> khud banti jaati hai. Niche accuracy khud-ba-khud banti jaati hai. <b style="color:var(--gold)">Yaad rahe:</b> achhi accuracy bhi mustaqbil ki <span class="hl">guarantee nahi</span> &mdash; ye sirf dashboard ko jawabdeh rakhta hai, aur number tabhi maani rakhta hai jab <b>sample bada ho</b> (kam se kam ~20&ndash;30 logs).</div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px">
       <button id="slogAdd" style="background:var(--gold);color:#1a1300;border:none;border-radius:8px;padding:9px 14px;font-weight:700;cursor:pointer;font-family:var(--disp)">&#128204; Log current signal</button>
       <label style="font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px">Horizon
@@ -1078,7 +1078,7 @@
     </div>
     <div class="jr-persist" id="slogPersist"></div>
     <div class="jr-stats" id="slogStats"></div>
-    <div class="jr-tablewrap"><table class="jr-table"><thead><tr><th>Logged</th><th>Coin/TF</th><th>Call</th><th>Price &rarr; Target</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody id="slogBody"></tbody></table></div>
+    <div class="jr-tablewrap"><table class="jr-table"><thead><tr><th>Logged</th><th>Coin/TF</th><th>Call</th><th>Entry &rarr; T / SL</th><th>Status</th><th>Result</th><th></th></tr></thead><tbody id="slogBody"></tbody></table></div>
   </div>
   <div class="sec-title">Trading Journal <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">LEARN FROM EVERY TRADE</span></div>
   <div class="card">
@@ -2492,8 +2492,11 @@ function slogAddNow(){
   const rsiTag=analysis.rsiNow!=null?Math.round(analysis.rsiNow):null;
   const aligned=dir==='neutral'?null:((dir==='bull'&&trend==='up')||(dir==='bear'&&trend==='down'));
   const fund=(liveFutures&&liveFutures.funding!=null)?liveFutures.funding:null;
+  const _atr=(analysis.atr&&analysis.atr>0)?analysis.atr:null;
+  let _stop=null,_tgt=target,_risk=null,_rmode=false;
+  if(_atr&&dir!=='neutral'){_risk=_atr;if(dir==='bull'){_tgt=analysis.price+2*_atr;_stop=analysis.price-_atr;}else{_tgt=analysis.price-2*_atr;_stop=analysis.price+_atr;}_rmode=true;}
   slog.push({id:now+''+Math.floor(Math.random()*999),t:now,sym:(typeof activeSym!=='undefined'?activeSym:'BTC'),tf:state.tf,verdict:analysis.verdict,score:analysis.score,bullPct:analysis.bullPct,
-    dir:dir,price:analysis.price,target:target,bull:lastScen.bull,bear:lastScen.bear,horizon:h,expiry:now+h*3600000,
+    dir:dir,price:analysis.price,target:_tgt,scenTarget:target,stop:_stop,risk:_risk,atr:_atr,rmode:_rmode,rr:null,bull:lastScen.bull,bear:lastScen.bear,horizon:h,expiry:now+h*3600000,
     trend:trend,rsi:rsiTag,aligned:aligned,fund:fund,
     maxSeen:analysis.price,minSeen:analysis.price,status:'pending',hitAt:null,exitPrice:null});
   slogSave();slogResolve();slogRender();
@@ -2507,20 +2510,34 @@ function slogResolve(){
   let changed=false;
   slog.forEach(s=>{
     if(s.status!=='pending')return;
-    const match=(s.sym? s.sym===sym : false); // track only against the coin this signal was logged for (legacy/no-sym: skip, avoids cross-coin contamination)
+    const match=(s.sym? s.sym===sym : false); // resolve only against the coin this signal was logged for
     if(match){
       if(price!=null){if(price>s.maxSeen)s.maxSeen=price;if(price<s.minSeen)s.minSeen=price;}
-      let hitTime=null;
-      cs.forEach(c=>{const ts=(c.time||0)*1000;if(ts>=s.t&&ts<=Math.min(now,s.expiry)){
-        if(c.high>s.maxSeen)s.maxSeen=c.high;if(c.low<s.minSeen)s.minSeen=c.low;
-        if(hitTime==null&&s.dir==='bull'&&s.target!=null&&c.high>=s.target)hitTime=ts;
-        if(hitTime==null&&s.dir==='bear'&&s.target!=null&&c.low<=s.target)hitTime=ts;
-      }});
-      if(hitTime!=null){s.status='hit';s.hitAt=hitTime;changed=true;}
-      else if(s.dir==='bull'&&s.target!=null&&s.maxSeen>=s.target){s.status='hit';s.hitAt=now;changed=true;}
-      else if(s.dir==='bear'&&s.target!=null&&s.minSeen<=s.target){s.status='hit';s.hitAt=now;changed=true;}
+      if(s.rmode){
+        let winT=null,lossT=null;
+        cs.forEach(c=>{const ts=(c.time||0)*1000;if(ts>=s.t&&ts<=Math.min(now,s.expiry)){
+          if(c.high>s.maxSeen)s.maxSeen=c.high;if(c.low<s.minSeen)s.minSeen=c.low;
+          if(s.dir==='bull'){if(lossT==null&&s.stop!=null&&c.low<=s.stop)lossT=ts;if(winT==null&&s.target!=null&&c.high>=s.target)winT=ts;}
+          else{if(lossT==null&&s.stop!=null&&c.high>=s.stop)lossT=ts;if(winT==null&&s.target!=null&&c.low<=s.target)winT=ts;}
+        }});
+        if(lossT!=null&&(winT==null||lossT<=winT)){s.status='loss';s.hitAt=lossT;s.exitPrice=s.stop;s.rr=-1;changed=true;}
+        else if(winT!=null){s.status='win';s.hitAt=winT;s.exitPrice=s.target;s.rr=2;changed=true;}
+      } else {
+        let hitTime=null;
+        cs.forEach(c=>{const ts=(c.time||0)*1000;if(ts>=s.t&&ts<=Math.min(now,s.expiry)){
+          if(c.high>s.maxSeen)s.maxSeen=c.high;if(c.low<s.minSeen)s.minSeen=c.low;
+          if(hitTime==null&&s.dir==='bull'&&s.target!=null&&c.high>=s.target)hitTime=ts;
+          if(hitTime==null&&s.dir==='bear'&&s.target!=null&&c.low<=s.target)hitTime=ts;
+        }});
+        if(hitTime!=null){s.status='hit';s.hitAt=hitTime;changed=true;}
+        else if(s.dir==='bull'&&s.target!=null&&s.maxSeen>=s.target){s.status='hit';s.hitAt=now;changed=true;}
+        else if(s.dir==='bear'&&s.target!=null&&s.minSeen<=s.target){s.status='hit';s.hitAt=now;changed=true;}
+      }
     }
-    if(s.status==='pending'&&now>=s.expiry){s.status='expired';s.exitPrice=match?price:null;s.resolvedAt=now;changed=true;}
+    if(s.status==='pending'&&now>=s.expiry){
+      if(s.rmode){s.status='timeout';const endP=(match&&price!=null)?price:s.price;s.exitPrice=endP;s.rr=s.risk?((s.dir==='bull'?(endP-s.price):(s.price-endP))/s.risk):0;s.resolvedAt=now;changed=true;}
+      else{s.status='expired';s.exitPrice=match?price:null;s.resolvedAt=now;changed=true;}
+    }
   });
   if(changed)slogSave();
 }
@@ -2530,26 +2547,31 @@ function slogDirCorrect(s){
   return s.dir==='bull'?end>s.price:end<s.price;
 }
 function slogStats(){
-  const resolved=slog.filter(s=>s.status==='hit'||s.status==='expired');
-  const calls=resolved.filter(s=>s.dir!=='neutral');
-  const hits=calls.filter(s=>s.status==='hit').length;
-  const dirOk=calls.filter(s=>slogDirCorrect(s)===true).length;
-  const n=calls.length,hitRate=n?hits/n*100:0,dirRate=n?dirOk/n*100:0;
+  const R=slog.filter(s=>s.rmode&&(s.status==='win'||s.status==='loss'||s.status==='timeout'));
+  const win=R.filter(s=>s.status==='win').length,loss=R.filter(s=>s.status==='loss').length,to=R.filter(s=>s.status==='timeout').length;
+  const decisive=win+loss,nR=R.length;
+  const wr=decisive?win/decisive*100:0;
+  const expR=nR?R.reduce((a,s)=>a+(s.rr||0),0)/nR:0;
   const pend=slog.filter(s=>s.status==='pending').length;
-  const aCalls=calls.filter(s=>s.aligned===true),cCalls=calls.filter(s=>s.aligned===false);
-  const aHit=aCalls.filter(s=>s.status==='hit').length,cHit=cCalls.filter(s=>s.status==='hit').length;
-  const aR=aCalls.length?Math.round(aHit/aCalls.length*100):null,cR=cCalls.length?Math.round(cHit/cCalls.length*100):null;
-  const breakdown='With trend: '+(aR!=null?(aHit+'/'+aCalls.length+' = '+aR+'%'):'&mdash;')+' &nbsp;&middot;&nbsp; Counter-trend: '+(cR!=null?(cHit+'/'+cCalls.length+' = '+cR+'%'):'&mdash;');
-  const col=v=>v>=60?'var(--green)':v>=45?'var(--gold)':'var(--red)';
+  const aR=R.filter(s=>s.aligned===true),cR=R.filter(s=>s.aligned===false);
+  const aWr=aR.length?Math.round(aR.filter(s=>s.status==='win').length/aR.length*100):null;
+  const cWr=cR.length?Math.round(cR.filter(s=>s.status==='win').length/cR.length*100):null;
+  const breakdown='With trend: '+(aWr!=null?(aWr+'% win ('+aR.length+')'):'&mdash;')+' &nbsp;&middot;&nbsp; Counter-trend: '+(cWr!=null?(cWr+'% win ('+cR.length+')'):'&mdash;');
+  const wcol=v=>v>=50?'var(--green)':v>=33?'var(--gold)':'var(--red)';
+  const ecol=expR>0.05?'var(--green)':expR<-0.05?'var(--red)':'var(--muted)';
   let trust;
-  if(n<10)trust='<span style="color:var(--gold)">Bahut kam sample ('+n+' resolved) &mdash; abhi is number par bharosa na karein. Kam se kam ~20&ndash;30 logs jama karein.</span>';
-  else trust='<span style="color:var(--dim)">Sample: '+n+' resolved calls. Yaad rahe &mdash; ye guzra hua record hai, mustaqbil ki guarantee nahi.</span>';
+  if(nR<20)trust='<span style="color:var(--gold)">Sample chhota ('+nR+' resolved) &mdash; faisle ke liye 20&ndash;30+ chahiye. Abhi koi natija na nikalein.</span>';
+  else if(expR>0.1)trust='<span style="color:var(--green)">Ab tak EDGE dikh raha (+'+expR.toFixed(2)+'R/trade). Phir bhi fees + slippage + emotions asli trade mein farq daalte hain &mdash; guarantee nahi.</span>';
+  else if(expR<-0.1)trust='<span style="color:var(--red)">Ab tak EDGE nahi ('+expR.toFixed(2)+'R/trade). In signals par akele bharosa mat karein.</span>';
+  else trust='<span style="color:var(--gold)">Takreeban break-even ('+expR.toFixed(2)+'R). Fees ke baad ye loss hai &mdash; abhi edge nahi. (2R/1R par break-even ke liye ~33% win chahiye.)</span>';
   return '<div class="s"><div class="k">Logged</div><div class="v">'+slog.length+'</div></div>'+
     '<div class="s"><div class="k">Pending</div><div class="v">'+pend+'</div></div>'+
-    '<div class="s"><div class="k">Target hit-rate</div><div class="v" style="color:'+col(hitRate)+'">'+(n?fmt(hitRate,0)+'%':'&mdash;')+'</div></div>'+
-    '<div class="s"><div class="k">Direction correct</div><div class="v" style="color:'+col(dirRate)+'">'+(n?fmt(dirRate,0)+'%':'&mdash;')+'</div></div>'+
-    '<div class="s" style="grid-column:1/-1;text-align:left"><div class="k">By trend alignment (target hits)</div><div class="v" style="font-size:10.5px;font-weight:400;line-height:1.5">'+breakdown+'</div></div>'+
-    '<div class="s" style="grid-column:1/-1;text-align:left"><div class="k">Trust note</div><div class="v" style="font-size:10.5px;font-weight:400;line-height:1.5">'+trust+'</div></div>';
+    '<div class="s"><div class="k">Win rate</div><div class="v" style="color:'+(decisive?wcol(wr):'var(--muted)')+'">'+(decisive?fmt(wr,0)+'%':'&mdash;')+'</div></div>'+
+    '<div class="s"><div class="k">Expectancy</div><div class="v" style="color:'+ecol+'">'+(nR?((expR>=0?'+':'')+expR.toFixed(2)+'R'):'&mdash;')+'</div></div>'+
+    '<div class="s"><div class="k">W / L / TO</div><div class="v" style="font-size:12px">'+win+' / '+loss+' / '+to+'</div></div>'+
+    '<div class="s"><div class="k">Resolved</div><div class="v">'+nR+'</div></div>'+
+    '<div class="s" style="grid-column:1/-1;text-align:left"><div class="k">By trend alignment (win rate)</div><div class="v" style="font-size:10.5px;font-weight:400;line-height:1.5">'+breakdown+'</div></div>'+
+    '<div class="s" style="grid-column:1/-1;text-align:left"><div class="k">Verdict</div><div class="v" style="font-size:10.5px;font-weight:400;line-height:1.5">'+trust+'</div></div>';
 }
 function slogAgo(ms){const d=Date.now()-ms,h=Math.floor(d/3600000);if(h<1)return Math.floor(d/60000)+'m ago';if(h<24)return h+'h ago';return Math.floor(h/24)+'d ago';}
 function slogDur(ms){if(ms==null||ms<0)ms=0;const m=Math.floor(ms/60000);if(m<60)return m+'m';const h=Math.floor(m/60),mm=m%60;if(h<24)return h+'h '+mm+'m';const d=Math.floor(h/24),hh=h%24;return d+'d '+hh+'h';}
@@ -2561,13 +2583,17 @@ function slogRender(){
     const dirLab=s.dir==='bull'?'<span style="color:var(--green)">BULLISH</span>':s.dir==='bear'?'<span style="color:var(--red)">BEARISH</span>':'<span style="color:var(--muted)">NEUTRAL</span>';
     const tgt=s.target!=null?'$'+fmtAx(s.target):'&mdash;';
     let badge,res;
-    if(s.status==='hit'){badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(34,199,132,.15);color:var(--green)">&#10003; HIT</span>';res='<span style="color:var(--green)">hit in '+slogDur((s.hitAt||s.t)-s.t)+'</span>';}
+    const _rr=s.rr!=null?((s.rr>=0?'+':'')+(+s.rr).toFixed(2)+'R'):'';
+    if(s.status==='win'){badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(34,199,132,.15);color:var(--green)">&#10003; WIN</span>';res='<span style="color:var(--green)">'+_rr+' &middot; target in '+slogDur((s.hitAt||s.t)-s.t)+'</span>';}
+    else if(s.status==='loss'){badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(234,57,67,.15);color:var(--red)">&#10007; LOSS</span>';res='<span style="color:var(--red)">'+_rr+' &middot; stop in '+slogDur((s.hitAt||s.t)-s.t)+'</span>';}
+    else if(s.status==='timeout'){badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(245,166,35,.15);color:var(--gold)">&#9203; TIMEOUT</span>';res='<span style="color:'+(s.rr>=0?'var(--green)':'var(--red)')+'">'+_rr+' &middot; window khatam</span>';}
+    else if(s.status==='hit'){badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(34,199,132,.15);color:var(--green)">&#10003; HIT</span>';res='<span style="color:var(--green)">hit in '+slogDur((s.hitAt||s.t)-s.t)+'</span>';}
     else if(s.status==='expired'){const dc=slogDirCorrect(s);badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(234,57,67,.15);color:var(--red)">&#10007; MISS</span>';res='missed after '+slogDur((s.resolvedAt||s.expiry)-s.t)+' &middot; dir '+(dc===true?'<span style="color:var(--green)">&#10003;</span>':dc===false?'<span style="color:var(--red)">&#10007;</span>':'&mdash;');}
     else{const left=Math.max(0,s.expiry-Date.now()),hh=Math.floor(left/3600000),mm=Math.floor((left%3600000)/60000);badge='<span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;background:rgba(245,166,35,.15);color:var(--gold)">&#9203; PENDING</span>';res='resolves in '+hh+'h '+mm+'m';}
     const tArrow=s.trend==='up'?'&#8593;':(s.trend==='down'?'&#8595;':'&#8594;');
     const alignTxt=s.aligned===true?'<span style="color:var(--green)">with trend</span>':(s.aligned===false?'<span style="color:var(--red)">counter-trend</span>':'');
     const tags=(s.trend?('trend'+tArrow+' '):'')+(s.rsi!=null?('&middot; RSI '+s.rsi+' '):'')+(alignTxt?('&middot; '+alignTxt):'');
-    return '<tr><td>'+slogAgo(s.t)+'</td><td><b style="color:var(--txt)">'+(s.sym||'&mdash;')+'</b><div style="font-size:9px;color:var(--dim)">'+s.tf+'</div></td><td>'+dirLab+'<div style="font-size:9px;color:var(--dim)">'+s.verdict+'</div>'+(tags?'<div style="font-size:9px;color:var(--dim);margin-top:2px">'+tags+'</div>':'')+'</td><td>$'+fmtAx(s.price)+' &rarr; '+tgt+'</td><td>'+badge+'</td><td style="font-size:10px">'+res+'</td><td><button data-sid="'+s.id+'" style="background:none;border:none;color:var(--dim);cursor:pointer">&#10005;</button></td></tr>';
+    return '<tr><td>'+slogAgo(s.t)+'</td><td><b style="color:var(--txt)">'+(s.sym||'&mdash;')+'</b><div style="font-size:9px;color:var(--dim)">'+s.tf+'</div></td><td>'+dirLab+'<div style="font-size:9px;color:var(--dim)">'+s.verdict+'</div>'+(tags?'<div style="font-size:9px;color:var(--dim);margin-top:2px">'+tags+'</div>':'')+'</td><td>$'+fmtAx(s.price)+' &rarr; '+tgt+(s.stop!=null?' <span style="color:var(--dim)">/ SL $'+fmtAx(s.stop)+'</span>':'')+'</td><td>'+badge+'</td><td style="font-size:10px">'+res+'</td><td><button data-sid="'+s.id+'" style="background:none;border:none;color:var(--dim);cursor:pointer">&#10005;</button></td></tr>';
   }).join('');
 }
 if($('#slogAdd'))$('#slogAdd').addEventListener('click',slogAddNow);
