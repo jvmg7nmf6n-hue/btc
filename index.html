@@ -581,7 +581,7 @@
   <div id="tdBar" style="margin:10px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)">
     <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:7px">MARKETS &middot; Gold &middot; Forex &middot; Stocks <span style="font-weight:400;color:var(--dim);font-size:10px">(Twelve Data feed)</span></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      <button class="dtool" data-sym="GOLD">Gold</button><button class="dtool" data-sym="SILVER">Silver</button><button class="dtool" data-sym="OIL">Oil</button><button class="dtool" data-sym="EURUSD">EUR/USD</button><button class="dtool" data-sym="GBPUSD">GBP/USD</button><button class="dtool" data-sym="USDJPY">USD/JPY</button><button class="dtool" data-sym="AAPL">Apple</button><button class="dtool" data-sym="TSLA">Tesla</button><button class="dtool" data-sym="NVDA">Nvidia</button><button class="dtool" data-sym="BTC">Back to Crypto</button>
+      <button class="dtool" data-sym="GOLD">Gold</button><button class="dtool" data-sym="SILVER">Silver</button><button class="dtool" data-sym="EURUSD">EUR/USD</button><button class="dtool" data-sym="GBPUSD">GBP/USD</button><button class="dtool" data-sym="USDJPY">USD/JPY</button><button class="dtool" data-sym="AAPL">Apple</button><button class="dtool" data-sym="TSLA">Tesla</button><button class="dtool" data-sym="NVDA">Nvidia</button><button class="dtool" data-sym="BTC">Back to Crypto</button>
     </div>
     <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
       <input id="tdKey" type="password" placeholder="Twelve Data API key paste karo" style="flex:1;min-width:170px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--txt);font-family:var(--mono);font-size:11px" />
@@ -1442,7 +1442,7 @@ function updateHeader(){const c=state.candles;if(!c.length)return;const last=c[c
   $('#price').textContent='$'+fmt(last,last<1?6:2);const e=$('#chg');e.textContent=(chg>=0?'+':'')+fmt(chg,2)+'% over window';e.className='chg '+(chg>=0?'up':'down');
   const co=COINS.find(x=>x.sym===activeSym);if($('#pairName'))$('#pairName').textContent=activeSym+'USDT';if($('#futPair'))$('#futPair').textContent=activeSym+'USDT';if($('#pairSub'))$('#pairSub').innerHTML=(co?co.name:activeSym)+(activeSym!=='BTC'?' &middot; <span style="color:var(--gold);cursor:pointer" id="pairReset">&#8635; reset to BTC</span>':' &middot; Technical Terminal');if(co){const p=co.chg*100;const e2=$('#chg24');e2.textContent=(p>=0?'+':'')+fmt(p,2)+'% · 30m';e2.className='chg '+(p>=0?'up':'down');}}
 
-var TD_MAP={'GOLD':'XAU/USD','SILVER':'XAG/USD','OIL':'WTI/USD','EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AAPL':'AAPL','TSLA':'TSLA','NVDA':'NVDA','AMZN':'AMZN'};
+var TD_MAP={'GOLD':'XAU/USD','SILVER':'XAG/USD','EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AAPL':'AAPL','TSLA':'TSLA','NVDA':'NVDA','AMZN':'AMZN'};
 async function tdFetch(sym,tf){
   var key=(localStorage.getItem('btc_td_key')||'').trim();
   if(!key){if($('#src'))$('#src').textContent='Twelve Data key chahiye (Markets bar)';return null;}
