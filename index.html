@@ -578,6 +578,17 @@
   </header>
 
   <div class="banner seed" id="banner"></div>
+  <div id="tdBar" style="margin:10px 0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)">
+    <div style="font-size:12px;font-weight:700;color:var(--txt);margin-bottom:7px">MARKETS &middot; Gold &middot; Forex &middot; Stocks <span style="font-weight:400;color:var(--dim);font-size:10px">(Twelve Data feed)</span></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <button class="dtool" data-sym="GOLD">Gold</button><button class="dtool" data-sym="SILVER">Silver</button><button class="dtool" data-sym="OIL">Oil</button><button class="dtool" data-sym="EURUSD">EUR/USD</button><button class="dtool" data-sym="GBPUSD">GBP/USD</button><button class="dtool" data-sym="USDJPY">USD/JPY</button><button class="dtool" data-sym="AAPL">Apple</button><button class="dtool" data-sym="TSLA">Tesla</button><button class="dtool" data-sym="NVDA">Nvidia</button><button class="dtool" data-sym="BTC">Back to Crypto</button>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <input id="tdKey" type="password" placeholder="Twelve Data API key paste karo" style="flex:1;min-width:170px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--txt);font-family:var(--mono);font-size:11px" />
+      <button class="dtool" id="tdKeySave">Save key</button><span id="tdKeyStat" style="font-size:10px;color:var(--dim)"></span>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:6px">Free key: <b>twelvedata.com</b> pe sign up (no card) &rarr; API key copy &rarr; yahan paste &rarr; Save. Forex/Stocks weekend band; free tier ~8 calls/min, 800/din.</div>
+  </div>
 
   <div class="futbar">
     <div class="top">
@@ -1539,7 +1550,30 @@ function updateHeader(){const c=state.candles;if(!c.length)return;const last=c[c
   $('#price').textContent='$'+fmt(last,last<1?6:2);const e=$('#chg');e.textContent=(chg>=0?'+':'')+fmt(chg,2)+'% over window';e.className='chg '+(chg>=0?'up':'down');
   const co=COINS.find(x=>x.sym===activeSym);if($('#pairName'))$('#pairName').textContent=activeSym+'USDT';if($('#futPair'))$('#futPair').textContent=activeSym+'USDT';if($('#pairSub'))$('#pairSub').innerHTML=(co?co.name:activeSym)+(activeSym!=='BTC'?' &middot; <span style="color:var(--gold);cursor:pointer" id="pairReset">&#8635; reset to BTC</span>':' &middot; Technical Terminal');if(co){const p=co.chg*100;const e2=$('#chg24');e2.textContent=(p>=0?'+':'')+fmt(p,2)+'% · 30m';e2.className='chg '+(p>=0?'up':'down');}}
 
+var TD_MAP={'GOLD':'XAU/USD','SILVER':'XAG/USD','OIL':'WTI/USD','EURUSD':'EUR/USD','GBPUSD':'GBP/USD','USDJPY':'USD/JPY','AAPL':'AAPL','TSLA':'TSLA','NVDA':'NVDA','AMZN':'AMZN'};
+async function tdFetch(sym,tf){
+  var key=(localStorage.getItem('btc_td_key')||'').trim();
+  if(!key){if($('#src'))$('#src').textContent='Twelve Data key chahiye (Markets bar)';return null;}
+  var iv={'1m':'1min','15m':'15min','30m':'30min','1h':'1h','1D':'1day','7D':'1week','1M':'1month'}[tf]||'1h';
+  var tdSym=TD_MAP[sym];if(!tdSym)return null;
+  var url='https://api.twelvedata.com/time_series?symbol='+encodeURIComponent(tdSym)+'&interval='+iv+'&outputsize=300&apikey='+encodeURIComponent(key);
+  try{
+    var r=await fetch(url);var j=await r.json();
+    if(!j||j.status==='error'||!Array.isArray(j.values)){if($('#src'))$('#src').textContent='TD: '+((j&&j.message)?(''+j.message).slice(0,50):'no data');return null;}
+    var c=j.values.map(function(v){var ds=''+v.datetime;var t=ds.length<=10?Date.parse(ds+'T00:00:00Z'):Date.parse(ds.replace(' ','T')+'Z');return {time:t/1000,open:+v.open,high:+v.high,low:+v.low,close:+v.close,volume:+(v.volume||0)};});
+    c=c.filter(function(x){return isFinite(x.time)&&isFinite(x.close);});
+    c.sort(function(a,b){return a.time-b.time;});
+    if(!c.length){if($('#src'))$('#src').textContent='TD: empty';return null;}
+    return c;
+  }catch(e){if($('#src'))$('#src').textContent='TD fetch fail';return null;}
+}
+function tdInit(){
+  var inp=$('#tdKey'),btn=$('#tdKeySave'),st=$('#tdKeyStat');
+  if(inp){var k=localStorage.getItem('btc_td_key')||'';if(k){inp.value=k;if(st)st.textContent='\u2713 key set';}}
+  if(btn)btn.addEventListener('click',function(){var v=(inp.value||'').trim();localStorage.setItem('btc_td_key',v);if(st)st.textContent=v?'\u2713 saved \u2014 ab Gold/Forex/Stock button dabao':'cleared';});
+}
 async function tryLive(tf){
+  if(typeof TD_MAP!=='undefined'&&TD_MAP[activeSym]){return await tdFetch(activeSym,tf);}
   const bn={'1m':'1m','15m':'15m','30m':'30m','1h':'1h','1D':'1d','7D':'1w','1M':'1M'};
   const ok={'1m':'1m','15m':'15m','30m':'30m','1h':'1H','1D':'1D','7D':'1W','1M':'1M'};
   const cd={'1m':'1m','15m':'15m','30m':'30m','1h':'1h','1D':'1D','7D':'7D','1M':'1M'};
@@ -1588,7 +1622,7 @@ async function tryLiveMulti(){
 async function load(){
   $('#dot').className='dot';$('#src').textContent='loading';
   const live=await tryLive(state.tf);
-  if(live&&live.length){state.candles=live;state.live=true;$('#dot').className='dot live';$('#src').textContent='live · binance';
+  if(live&&live.length){state.candles=live;state.live=true;$('#dot').className='dot live';$('#src').textContent='live · '+((typeof TD_MAP!=='undefined'&&TD_MAP[activeSym])?'twelvedata':'binance');
     $('#banner').className='banner live';$('#banner').innerHTML='● Live feed active — refreshed just now from a public API in your browser.';
     liveFutures=await tryFutures();}
   else if(activeSym==='BTC'){state.candles=seedCandles(state.tf);state.live=false;$('#dot').className='dot';$('#src').textContent='seeded · crypto.com';
@@ -1823,7 +1857,7 @@ function fmtPrice(p){if(p>=100)return fmt(p,2);if(p>=1)return fmt(p,3);if(p>=0.0
 let activeSym='BTC';
 function fmtAx(v){const a=Math.abs(v);if(!isFinite(v))return '\u2014';if(a>=1000)return fmt(v,0);if(a>=1)return fmt(v,2);if(a>=0.01)return fmt(v,4);if(a>=0.0001)return fmt(v,6);return v.toPrecision(3);}
 async function selectSym(sym){ if(!sym)return; sym=(''+sym).toUpperCase(); activeSym=sym;
-  if($('#pairName'))$('#pairName').textContent=sym+'USDT';
+  if($('#pairName'))$('#pairName').textContent=(typeof TD_MAP!=='undefined'&&TD_MAP[sym])?TD_MAP[sym]:sym+'USDT';
   if($('#src'))$('#src').textContent='loading '+sym+'\u2026';
   calcTouched=false;if($('#calcEntry'))$('#calcEntry').value='';if($('#stEntry'))$('#stEntry').value='';
   try{window.scrollTo({top:0,behavior:'smooth'});}catch(e){}
@@ -2863,7 +2897,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();swInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();swInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
