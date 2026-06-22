@@ -986,6 +986,13 @@
     <div id="swBtOut" class="sw-bt" style="display:none"></div>
   </div>
 
+  <div class="sec-title">Trend Line Break <span style="font-size:9px;color:var(--dim);letter-spacing:.06em">OBJECTIVE APPROX</span></div>
+  <div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel-2);margin-bottom:18px">
+    <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:9px"><b style="color:var(--txt)">Formula:</b> swing-pivot se auto 3-touch trend line &rarr; break pe entry (upar=Buy, neeche=Sell) &middot; SL line ke paar &middot; target 1:2. <b style="color:var(--gold)">Yeh discretionary method ka rough AUTO-version hai &mdash; uski exact hand-drawn lines nahi. Number ishaara hai, final sach nahi.</b></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"><button class="dtool" id="tlBtBtn">Backtest active coin</button><button class="dtool" id="tlDeepBtn" style="border-color:var(--gold);color:var(--gold)">DEEP TEST (all &times; all TF)</button></div>
+    <div id="tlOut" style="display:none;font-size:11.5px;color:var(--txt);line-height:1.7;margin-top:4px"></div>
+  </div>
+
   <div class="sec-title">Short Trade Desk <span id="stCoin" style="font-size:11px;color:var(--gold);letter-spacing:.06em;font-weight:700">BTCUSDT</span> <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">PLAN · SIMULATE · SAFE</span></div>
   <div class="card">
     <div class="safebox">🛡️ This desk <b>plans and simulates</b> short trades — it calculates real numbers from the live price but places <b>no real orders</b>. Real execution belongs on a separate server (see the "Backend Code" tab) where your API key stays private. Nothing here can touch real funds.</div>
@@ -1502,6 +1509,61 @@ async function swBacktestAll(){
   h+='</table><br><b>AGGREGATE (sab coins jama):</b><br>IMPROVED: '+AG.n+' trades \u00b7 Win '+AG.wr.toFixed(0)+'% \u00b7 Expectancy <b style="color:'+ec(AG.n?AG.exp:null)+'">'+(AG.exp>=0?'+':'')+AG.exp.toFixed(2)+'R</b> \u00b7 PF '+(AG.pf===Infinity?'\u221e':AG.pf.toFixed(2))+'<br>RAW: '+RG.n+' trades \u00b7 Exp '+(RG.exp>=0?'+':'')+RG.exp.toFixed(2)+'R';
   h+='<br><br><span style="color:var(--dim);font-size:10.5px">Bada sample = behtar verdict. Aggregate Expectancy <b>+R consistently</b> ho to edge; ~0 ya \u2212R to strategy chhodo. Past hai, future guarantee nahi.</span>';
   out.innerHTML=h;}
+var TL_OPT={k:2,W:50,tol:0.04,hold:60};
+function tlDetect(C,i){var o=TL_OPT,k=o.k,W=o.W,tol=o.tol;var hiB=[],loB=[];
+  for(var x=Math.max(k,i-W);x<=i-1-k;x++){var ih=true,il=true;
+    for(var j=x-k;j<=x+k;j++){if(j===x)continue;if(C[j].high>=C[x].high)ih=false;if(C[j].low<=C[x].low)il=false;}
+    if(ih)hiB.push(x);if(il)loB.push(x);}
+  var px=C[i].close,pxv=C[i-1].close;
+  if(hiB.length>=3){var a=hiB[hiB.length-3],b=hiB[hiB.length-2],c=hiB[hiB.length-1];var ha=C[a].high,hb=C[b].high,hc=C[c].high;
+    if(ha>hb&&hb>hc){var sl=(hc-ha)/(c-a),La=ha+sl*(b-a);
+      if(Math.abs(hb-La)<=tol*hb){var lv=ha+sl*(i-a),lvp=ha+sl*(i-1-a);
+        if(pxv<=lvp&&px>lv)return {dir:'long',i:i,entry:px,slv:lv*(1-0.001)};}}}
+  if(loB.length>=3){var a2=loB[loB.length-3],b2=loB[loB.length-2],c2=loB[loB.length-1];var la=C[a2].low,lb=C[b2].low,lc=C[c2].low;
+    if(la<lb&&lb<lc){var s2=(lc-la)/(c2-a2),Lb=la+s2*(b2-a2);
+      if(Math.abs(lb-Lb)<=tol*lb){var lv2=la+s2*(i-a2),lvp2=la+s2*(i-1-a2);
+        if(pxv>=lvp2&&px<lv2)return {dir:'short',i:i,entry:px,slv:lv2*(1+0.001)};}}}
+  return null;}
+function tlSim(C,p,rr,useBE){var entry=p.entry,sl=p.slv,W=TL_OPT.hold;
+  if(p.dir==='long'){if(entry<=sl)return 'skip';var oR=entry-sl,be=entry+oR,tp=entry+rr*oR,bh=false;
+    for(var m=p.i+1;m<C.length&&m<=p.i+W;m++){var c=C[m];
+      if(!bh){if(c.low<=sl)return 'loss';if(c.high>=tp)return 'win';if(useBE&&c.high>=be)bh=true;}
+      else{if(c.low<=entry)return 'scratch';if(c.high>=tp)return 'win';}}return 'open';}
+  if(entry>=sl)return 'skip';var o2=sl-entry,be2=entry-o2,tp2=entry-rr*o2,bh2=false;
+  for(var m2=p.i+1;m2<C.length&&m2<=p.i+W;m2++){var c2=C[m2];
+    if(!bh2){if(c2.high>=sl)return 'loss';if(c2.low<=tp2)return 'win';if(useBE&&c2.low<=be2)bh2=true;}
+    else{if(c2.high>=entry)return 'scratch';if(c2.low<=tp2)return 'win';}}return 'open';}
+function tlRun(C){var raw=[],imp=[],maLen=50;
+  for(var i=TL_OPT.k+3;i<C.length;i++){var p=tlDetect(C,i);if(!p)continue;
+    var r1=tlSim(C,p,2,false);if(r1==='win'||r1==='loss')raw.push(r1);
+    var sm=0,nn=0;for(var j=Math.max(0,i-maLen+1);j<=i;j++){sm+=C[j].close;nn++;}var ma=sm/nn;
+    var tOK=(p.dir==='long')?(C[i].close>ma):(C[i].close<ma);
+    if(tOK){var r2=tlSim(C,p,2,true);if(r2==='win'||r2==='loss'||r2==='scratch')imp.push(r2);}}
+  return {raw:raw,imp:imp};}
+function tlBacktest(){var C=state.candles,out=$('#tlOut');if(!out)return;out.style.display='';
+  if(!C||C.length<60){out.textContent='60+ candles chahiye \u2014 coin/TF load hone do.';return;}
+  var R=tlRun(C),A=swStats(R.raw),I=swStats(R.imp);
+  function pf(x){return x===Infinity?'\u221e':x.toFixed(2);}
+  function blk(t,S){return '<b>'+t+'</b><br>Trades: '+S.n+' (W '+S.w+' / L '+S.l+(S.sc?' / BE '+S.sc:'')+')<br>Win: <b style="color:'+(S.wr>=40?'var(--green)':'var(--red)')+'">'+S.wr.toFixed(0)+'%</b> &middot; Expectancy: <b style="color:'+(S.exp>0?'var(--green)':'var(--red)')+'">'+(S.exp>=0?'+':'')+S.exp.toFixed(2)+'R</b>/trade &middot; PF '+pf(S.pf)+' &middot; Max loss streak '+S.mcl;}
+  out.innerHTML='<b>Trend Line Break \u2014 '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br><br>'+blk('RAW (all breaks, plain 1:2)',A)+'<br><br>'+blk('IMPROVED (trend filter + breakeven)',I)+'<br><br><span style="color:var(--dim);font-size:10.5px">Auto-approx. Expectancy <b>+R</b>=edge. Chhota sample=shor. Past hai, future guarantee nahi.</span>';}
+async function tlDeepTest(){var out=$('#tlOut');if(!out)return;out.style.display='';
+  var tfs=['15m','30m','1h','2h','4h','1D'],coins=swCoins();
+  out.innerHTML='DEEP TEST (Trend Line) chal raha hai \u2014 '+coins.length+'\u00d7'+tfs.length+' combos. Thoda ruko (~30-60s)\u2026';
+  var grand=[],perTf={};
+  for(var ti=0;ti<tfs.length;ti++){var tf=tfs[ti],bucket=[];
+    for(var ci=0;ci<coins.length;ci++){var sym=coins[ci],C=null;
+      try{C=await swFetch(sym,tf);}catch(e){}
+      if(C&&C.length>1&&C[0].time>C[C.length-1].time)C.sort(function(a,b){return a.time-b.time;});
+      if(!C||C.length<60)continue;
+      var R=tlRun(C);for(var z=0;z<R.imp.length;z++){bucket.push(R.imp[z]);grand.push(R.imp[z]);}}
+    perTf[tf]=swStats(bucket);}
+  var G=swStats(grand);
+  function ec(e,n){return(!n)?'var(--dim)':(e>0?'var(--green)':(e<0?'var(--red)':'var(--gold)'));}
+  var h='<b>DEEP TEST \u2014 Trend Line Break \u00b7 all coins \u00d7 all TFs</b><br><br><table style="border-collapse:collapse;font-size:11px"><tr style="color:var(--dim)"><td style="padding:1px 14px 1px 0">TF</td><td style="padding:1px 14px">trades</td><td>Expectancy</td></tr>';
+  tfs.forEach(function(tf){var S=perTf[tf];h+='<tr><td style="padding:1px 14px 1px 0">'+tf+'</td><td style="padding:1px 14px;color:var(--dim)">'+S.n+'</td><td style="color:'+ec(S.exp,S.n)+'">'+(S.n?((S.exp>=0?'+':'')+S.exp.toFixed(2)+'R'):'\u2014')+'</td></tr>';});
+  h+='</table><br><b style="font-size:13px">GRAND TOTAL (sab jama):</b><br>'+G.n+' trades \u00b7 Win '+G.wr.toFixed(0)+'% \u00b7 Expectancy <b style="font-size:14px;color:'+ec(G.exp,G.n)+'">'+(G.exp>=0?'+':'')+G.exp.toFixed(2)+'R</b> \u00b7 PF '+(G.pf===Infinity?'\u221e':G.pf.toFixed(2))+' \u00b7 Max loss streak '+G.mcl+'<br><br><span style="color:var(--dim);font-size:10.5px">Auto-approx (discretionary method ka). +R = ishaara edge ka, par exact hand-drawn nahi. Past hai, future guarantee nahi.</span>';
+  out.innerHTML=h;}
+function tlInit(){var b=$('#tlBtBtn');if(b)b.addEventListener('click',tlBacktest);var d=$('#tlDeepBtn');if(d)d.addEventListener('click',tlDeepTest);}
 function swInit(){
   var ba=$('#swBtAllBtn');if(ba)ba.addEventListener('click',swBacktestAll);
   var db=$('#swDeepBtn');if(db)db.addEventListener('click',swDeepTest);
@@ -2924,7 +2986,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();swInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();swInit();tdInit();tlInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
