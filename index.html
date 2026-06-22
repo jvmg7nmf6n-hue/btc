@@ -970,29 +970,6 @@
     </div>
   </div>
 
-  <div class="sec-title">Sandwich Pattern Scanner <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">AUTO &middot; ALTS (NO MEMES)</span></div>
-  <div class="card sw-card">
-    <div class="sw-formula"><b>Formula:</b> C1 strong candle &rarr; C2 doji (same color) &rarr; C3 momentum candle closing past the doji &mdash; all 3 same color. Entry = pullback to doji wick &middot; SL beyond C1 &middot; target 1:2. Long &amp; short, all timeframes. <b>Prediction nahi</b> &mdash; pehle backtest.</div>
-    <div class="sw-controls">
-      <span style="font-size:11px;color:var(--dim)">TF:</span>
-      <div class="bh-look" id="swTf"><button class="chip" data-swtf="15m">15m</button><button class="chip" data-swtf="30m">30m</button><button class="chip on" data-swtf="1h">1h</button><button class="chip" data-swtf="2h">2h</button><button class="chip" data-swtf="4h">4h</button><button class="chip" data-swtf="1D">1D</button></div>
-      <button class="dtool" id="swScanBtn">Scan now</button>
-      <button class="dtool" id="swAuto">Auto: off</button>
-      <button class="dtool" id="swAlertBtn">Alerts off</button>
-      <button class="dtool" id="swBtBtn">Backtest active coin</button><button class="dtool" id="swBtAllBtn">Backtest ALL coins</button><button class="dtool" id="swDeepBtn" style="border-color:var(--gold);color:var(--gold)">DEEP TEST (all × all TF)</button>
-    </div>
-    <div id="swStatus" class="sw-status">Tap &ldquo;Scan now&rdquo; to check all majors + alts for a live Sandwich setup.</div>
-    <div id="swResults"></div>
-    <div id="swBtOut" class="sw-bt" style="display:none"></div>
-  </div>
-
-  <div class="sec-title">Trend Line Break <span style="font-size:9px;color:var(--dim);letter-spacing:.06em">OBJECTIVE APPROX</span></div>
-  <div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel-2);margin-bottom:18px">
-    <div style="font-size:11px;color:var(--dim);line-height:1.6;margin-bottom:9px"><b style="color:var(--txt)">Formula:</b> swing-pivot se auto 3-touch trend line &rarr; break pe entry (upar=Buy, neeche=Sell) &middot; SL line ke paar &middot; target 1:2. <b style="color:var(--gold)">Yeh discretionary method ka rough AUTO-version hai &mdash; uski exact hand-drawn lines nahi. Number ishaara hai, final sach nahi.</b></div>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"><button class="dtool" id="tlBtBtn">Backtest active coin</button><button class="dtool" id="tlDeepBtn" style="border-color:var(--gold);color:var(--gold)">DEEP TEST (all &times; all TF)</button></div>
-    <div id="tlOut" style="display:none;font-size:11.5px;color:var(--txt);line-height:1.7;margin-top:4px"></div>
-  </div>
-
   <div class="sec-title">Short Trade Desk <span id="stCoin" style="font-size:11px;color:var(--gold);letter-spacing:.06em;font-weight:700">BTCUSDT</span> <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">PLAN · SIMULATE · SAFE</span></div>
   <div class="card">
     <div class="safebox">🛡️ This desk <b>plans and simulates</b> short trades — it calculates real numbers from the live price but places <b>no real orders</b>. Real execution belongs on a separate server (see the "Backend Code" tab) where your API key stays private. Nothing here can touch real funds.</div>
@@ -1398,180 +1375,6 @@ function renderBreadth(){
     '<div class="bd-note">Last '+N+' candles ('+state.tf+', \u2248'+span+'). Count = momentum/bias \u2014 prediction nahi. Net change aur volume isay confirm/deny karte hain.</div>';
 }
 function bdInit(){const box=$('#bdLook');if(box)box.addEventListener('click',e=>{const b=e.target.closest('[data-bd]');if(!b)return;document.querySelectorAll('#bdLook .chip').forEach(x=>x.classList.remove('on'));b.classList.add('on');bdLook=+b.dataset.bd;renderBreadth();});}
-/* ================= SANDWICH PATTERN: formula + scanner + backtest ================= */
-function swG(c){return c.close>c.open;} function swR(c){return c.close<c.open;}
-function swRng(c){return c.high-c.low;} function swBody(c){return Math.abs(c.close-c.open);}
-function swUW(c){return c.high-Math.max(c.open,c.close);} function swLW(c){return Math.min(c.open,c.close)-c.low;}
-function swDoji(c){return swRng(c)>0 && swBody(c)/swRng(c)<=0.35;}
-function swStrong(c){return swRng(c)>0 && swBody(c)/swRng(c)>=0.50;}
-function swDetect(C,i){var c1=C[i],c2=C[i+1],c3=C[i+2];if(!c3)return null;
-  if(swG(c1)&&swStrong(c1)&&swDoji(c2)&&swG(c2)&&swG(c3)&&swStrong(c3)&&c3.close>c2.high&&swUW(c3)/swRng(c3)<=0.25)return {dir:'long',i:i,c1:c1,c2:c2,c3:c3};
-  if(swR(c1)&&swStrong(c1)&&swDoji(c2)&&swR(c2)&&swR(c3)&&swStrong(c3)&&c3.close<c2.low&&swLW(c3)/swRng(c3)<=0.25)return {dir:'short',i:i,c1:c1,c2:c2,c3:c3};
-  return null;}
-function swLevels(p){if(p.dir==='long'){var e1=p.c2.high,e2=p.c2.low,sl=p.c1.low,risk=e1-sl;return {dir:'long',entry1:e1,entry2:e2,sl:sl,tp:e1+2*risk};}var e1b=p.c2.low,e2b=p.c2.high,slb=p.c1.high,riskb=slb-e1b;return {dir:'short',entry1:e1b,entry2:e2b,sl:slb,tp:e1b-2*riskb};}
-function swSim(C,p,W,rr,useBE){var buf=0.0005;
-  if(p.dir==='long'){var entry=p.c2.high,sl=p.c1.low*(1-buf);if(entry<=sl)return 'skip';var oneR=entry-sl,be=entry+oneR,tp=entry+rr*oneR;
-    for(var k=p.i+3;k<=p.i+2+W&&k<C.length;k++){if(C[k].low<=entry){var beH=false;for(var m=k;m<C.length;m++){var c=C[m];if(!beH){if(c.low<=sl)return 'loss';if(c.high>=tp)return 'win';if(useBE&&c.high>=be)beH=true;}else{if(c.low<=entry)return 'scratch';if(c.high>=tp)return 'win';}}return 'open';}}return 'noentry';}
-  var en=p.c2.low,sl2=p.c1.high*(1+buf);if(en>=sl2)return 'skip';var oneR2=sl2-en,be2=en-oneR2,tp2=en-rr*oneR2;
-  for(var k2=p.i+3;k2<=p.i+2+W&&k2<C.length;k2++){if(C[k2].high>=en){var beH2=false;for(var m2=k2;m2<C.length;m2++){var c2=C[m2];if(!beH2){if(c2.high>=sl2)return 'loss';if(c2.low<=tp2)return 'win';if(useBE&&c2.low<=be2)beH2=true;}else{if(c2.high>=en)return 'scratch';if(c2.low<=tp2)return 'win';}}return 'open';}}return 'noentry';}
-function swCoins(){return [].concat(MARKETS.majors,MARKETS.alts).map(function(x){return x.sym;});}
-async function swFetch(sym,tf){
-  var bn={'15m':'15m','30m':'30m','1h':'1h','2h':'2h','4h':'4h','1D':'1d'},ok={'15m':'15m','30m':'30m','1h':'1H','2h':'2H','4h':'4H','1D':'1D'},cd={'15m':'15m','30m':'30m','1h':'1h','2h':'2h','4h':'4h','1D':'1D'};var lim=150;
-  var srcs=[
-   {u:'https://api.binance.com/api/v3/klines?symbol='+sym+'USDT&interval='+bn[tf]+'&limit='+lim,p:function(j){return Array.isArray(j)?j.map(function(k){return {time:k[0]/1000,open:+k[1],high:+k[2],low:+k[3],close:+k[4]};}):null;}},
-   {u:'https://data-api.binance.vision/api/v3/klines?symbol='+sym+'USDT&interval='+bn[tf]+'&limit='+lim,p:function(j){return Array.isArray(j)?j.map(function(k){return {time:k[0]/1000,open:+k[1],high:+k[2],low:+k[3],close:+k[4]};}):null;}},
-   {u:'https://www.okx.com/api/v5/market/candles?instId='+sym+'-USDT&bar='+ok[tf]+'&limit='+lim,p:function(j){return (j&&Array.isArray(j.data))?j.data.map(function(k){return {time:+k[0]/1000,open:+k[1],high:+k[2],low:+k[3],close:+k[4]};}):null;}},
-   {u:'https://api.crypto.com/exchange/v1/public/get-candlestick?instrument_name='+sym+'_USDT&timeframe='+cd[tf]+'&count='+lim,p:function(j){return (j&&j.result&&Array.isArray(j.result.data))?j.result.data.map(function(k){return {time:+k.t/1000,open:+k.o,high:+k.h,low:+k.l,close:+k.c};}):null;}}
-  ];
-  for(var x=0;x<srcs.length;x++){try{var r=await fetch(srcs[x].u,{cache:'no-store'});if(!r.ok)continue;var j=await r.json();var c=srcs[x].p(j);if(c&&c.length){c.sort(function(a,b){return a.time-b.time;});return c;}}catch(e){}}
-  return null;}
-let swScanning=false, swSeen={}, swAutoTimer=null, swScanTf='1h', swAlertOn=false;
-function swAlertFire(h){var dir=h.dir==='long'?'LONG':'SHORT';
-  if(typeof showLineToast==='function')showLineToast('\ud83e\udd6a Sandwich '+dir+' on '+h.sym+' ('+swScanTf+') \u2014 time to dive in');
-  if(swAlertOn&&('Notification'in window)&&Notification.permission==='granted'){try{new Notification('Sandwich \u2014 '+h.sym+' '+dir,{body:swScanTf+' setup. Entry '+fmtAx(h.lv.entry1)+', SL '+fmtAx(h.lv.sl)+', TP '+fmtAx(h.lv.tp)});}catch(e){}}}
-function swRenderHits(hits){var el=$('#swResults');if(!el)return;
-  if(!hits.length){el.innerHTML='<div style="font-size:12px;color:var(--dim);padding:6px 0">No fresh Sandwich setup abhi. Auto-scan on rakho ya thodi der baad dobara scan karo.</div>';return;}
-  el.innerHTML=hits.map(function(h){var col=h.dir==='long'?'var(--green)':'var(--red)';var bg=h.dir==='long'?'rgba(39,215,150,.16)':'rgba(255,86,102,.16)';
-    return '<div class="sw-hit"><span><span class="sym">'+h.sym+'</span> <span class="sw-badge" style="background:'+bg+';color:'+col+'">'+(h.dir==='long'?'LONG':'SHORT')+'</span> <span style="color:var(--dim);font-size:10px">'+h.status+'</span></span><span style="font-size:11px">Entry <b>'+fmtAx(h.lv.entry1)+'</b> &middot; SL <b style="color:var(--red)">'+fmtAx(h.lv.sl)+'</b> &middot; TP <b style="color:var(--green)">'+fmtAx(h.lv.tp)+'</b></span></div>';}).join('');}
-async function swScan(){
-  if(swScanning)return;swScanning=true;var st=$('#swStatus');var coins=swCoins();
-  if(st)st.textContent='Scanning '+coins.length+' coins on '+swScanTf+' \u2026';
-  var hits=[];
-  for(var ci=0;ci<coins.length;ci++){var sym=coins[ci];var C=null;try{C=await swFetch(sym,swScanTf);}catch(e){}
-    if(!C||C.length<6)continue;
-    var _mn=Math.min(50,C.length),_ms=0;for(var _z=C.length-_mn;_z<C.length;_z++)_ms+=C[_z].close;var _ma=_ms/_mn;
-    for(var i=C.length-3;i>=Math.max(0,C.length-6);i--){var p=swDetect(C,i);if(p){var _c3=C[i+2];var _tok=(p.dir==='long')?(_c3.close>_ma):(_c3.close<_ma);if(!_tok)continue;var L=swLevels(p);var last=C[C.length-1].close;var status;
-      if(p.dir==='long')status=(last<=L.entry1&&last>=L.entry2)?'ENTRY ZONE':(last>L.entry1?'wait pullback':'missed');
-      else status=(last>=L.entry1&&last<=L.entry2)?'ENTRY ZONE':(last<L.entry1?'wait pullback':'missed');
-      hits.push({sym:sym,dir:p.dir,lv:L,c3t:p.c3.time,status:status});break;}}
-  }
-  swRenderHits(hits);
-  hits.forEach(function(h){var key=h.sym+':'+h.dir+':'+h.c3t;if(!swSeen[key]){swSeen[key]=1;swAlertFire(h);}});
-  if(st)st.textContent='Last scan '+new Date().toLocaleTimeString()+' \u2014 '+hits.length+' setup(s). (alts+majors, no memes)';
-  swScanning=false;}
-function swStats(rs){var w=0,l=0,sc=0,mcl=0,ccl=0;for(var i=0;i<rs.length;i++){var r=rs[i];if(r==='win'){w++;ccl=0;}else if(r==='loss'){l++;ccl++;if(ccl>mcl)mcl=ccl;}else if(r==='scratch'){sc++;ccl=0;}}var n=w+l+sc;return {n:n,w:w,l:l,sc:sc,wr:n?w/n*100:0,exp:n?(w*2-l)/n:0,pf:l>0?(w*2)/l:(w>0?Infinity:0),mcl:mcl};}
-function swBacktest(){var C=state.candles;var out=$('#swBtOut');if(!out)return;out.style.display='';
-  if(!C||C.length<60){out.textContent='Backtest ke liye 60+ candles chahiye \u2014 coin/TF load hone do, phir dobara dabao.';return;}
-  var maLen=50;function sma(idx){var s=0,n=0;for(var j=Math.max(0,idx-maLen+1);j<=idx;j++){s+=C[j].close;n++;}return n?s/n:C[idx].close;}
-  var raw=[],imp=[];
-  for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;
-    var r1=swSim(C,p,4,2,false);if(r1==='win'||r1==='loss')raw.push(r1);
-    var c3i=i+2,ma=sma(c3i),tOK=(p.dir==='long')?(C[c3i].close>ma):(C[c3i].close<ma);
-    if(tOK){var r2=swSim(C,p,4,2,true);if(r2==='win'||r2==='loss'||r2==='scratch')imp.push(r2);}}
-  var R=swStats(raw),I=swStats(imp);
-  function pf(x){return x===Infinity?'\u221e':x.toFixed(2);}
-  function blk(t,S){return '<b>'+t+'</b><br>Trades: '+S.n+' (W '+S.w+' / L '+S.l+(S.sc?' / BE '+S.sc:'')+')<br>Win: <b style="color:'+(S.wr>=40?'var(--green)':'var(--red)')+'">'+S.wr.toFixed(0)+'%</b> &middot; Expectancy: <b style="color:'+(S.exp>0?'var(--green)':'var(--red)')+'">'+(S.exp>=0?'+':'')+S.exp.toFixed(2)+'R</b>/trade &middot; PF '+pf(S.pf)+' &middot; Max loss streak '+S.mcl;}
-  out.innerHTML='<b>Backtest '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br><br>'+blk('RAW (all patterns, plain 1:2)',R)+'<br><br>'+blk('IMPROVED (trend filter + 1:1 breakeven)',I)+'<br><br><span style="color:var(--dim);font-size:10.5px"><b>Expectancy</b> = asli math: (jeet\u00d72 \u2212 haar)/trade. <b>+0.00R se upar = edge</b>. 1:2 pe break-even ~33% win. Chhota sample = shor; zyada candles/coins = behtar verdict. Past hai, future guarantee nahi.</span>';}
-async function swDeepTest(){
-  var out=$('#swBtOut');if(!out)return;out.style.display='';
-  var tfs=['15m','30m','1h','2h','4h','1D'];var coins=swCoins();
-  out.innerHTML='DEEP TEST chal raha hai \u2014 '+coins.length+' coins \u00d7 '+tfs.length+' timeframes. Thoda ruko (~30-60s)\u2026';
-  var grand=[],perTf={};
-  for(var ti=0;ti<tfs.length;ti++){var tf=tfs[ti];var bucket=[];
-    for(var ci=0;ci<coins.length;ci++){var sym=coins[ci];var C=null;
-      try{C=await swFetch(sym,tf);}catch(e){}
-      if(C&&C.length>1&&C[0].time>C[C.length-1].time)C.sort(function(a,b){return a.time-b.time;});
-      if(!C||C.length<60)continue;
-      var maLen=50;
-      for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;
-        var c3i=i+2,sm=0,nn=0;for(var j=Math.max(0,c3i-maLen+1);j<=c3i;j++){sm+=C[j].close;nn++;}var ma=sm/nn;
-        var tOK=(p.dir==='long')?(C[c3i].close>ma):(C[c3i].close<ma);
-        if(tOK){var r=swSim(C,p,4,2,true);if(r==='win'||r==='loss'||r==='scratch'){bucket.push(r);grand.push(r);}}}}
-    perTf[tf]=swStats(bucket);}
-  var G=swStats(grand);
-  function ec(e,n){return (!n)?'var(--dim)':(e>0?'var(--green)':(e<0?'var(--red)':'var(--gold)'));}
-  var h='<b>DEEP TEST \u2014 IMPROVED rules \u00b7 all coins \u00d7 all TFs</b><br><br><table style="border-collapse:collapse;font-size:11px">';
-  h+='<tr style="color:var(--dim)"><td style="padding:1px 14px 1px 0">TF</td><td style="padding:1px 14px">trades</td><td>Expectancy</td></tr>';
-  tfs.forEach(function(tf){var S=perTf[tf];h+='<tr><td style="padding:1px 14px 1px 0">'+tf+'</td><td style="padding:1px 14px;color:var(--dim)">'+S.n+'</td><td style="color:'+ec(S.exp,S.n)+'">'+(S.n?((S.exp>=0?'+':'')+S.exp.toFixed(2)+'R'):'\u2014')+'</td></tr>';});
-  h+='</table><br><b style="font-size:13px">GRAND TOTAL (sab jama):</b><br>'+G.n+' trades \u00b7 Win '+G.wr.toFixed(0)+'% \u00b7 Expectancy <b style="font-size:14px;color:'+ec(G.exp,G.n)+'">'+(G.exp>=0?'+':'')+G.exp.toFixed(2)+'R</b> \u00b7 PF '+(G.pf===Infinity?'\u221e':G.pf.toFixed(2))+' \u00b7 Max loss streak '+G.mcl;
-  h+='<br><br><span style="color:var(--dim);font-size:10.5px"><b>Yeh sabse bara test hai.</b> GRAND Expectancy <b>+R</b> (saaf, 30+ trades pe) = asli edge. ~0 ya \u2212R = strategy mein dum nahi. Past hai, future guarantee nahi.</span>';
-  out.innerHTML=h;}
-async function swBacktestAll(){
-  var out=$('#swBtOut');if(!out)return;out.style.display='';
-  var tf=(typeof swScanTf!=='undefined'&&swScanTf)?swScanTf:'1h';
-  out.innerHTML='Backtest ALL coins ('+tf+') chal raha hai\u2026 thoda ruko (~10s).';
-  var coins=swCoins();var rawAll=[],impAll=[],rows=[];
-  for(var ci=0;ci<coins.length;ci++){var sym=coins[ci];var C=null;
-    try{C=await swFetch(sym,tf);}catch(e){}
-    if(C&&C.length>1&&C[0].time>C[C.length-1].time)C.sort(function(a,b){return a.time-b.time;});
-    if(!C||C.length<60){rows.push({sym:sym,n:0,exp:null});continue;}
-    var maLen=50,imp=[];
-    for(var i=0;i+2<C.length;i++){var p=swDetect(C,i);if(!p)continue;
-      var r1=swSim(C,p,4,2,false);if(r1==='win'||r1==='loss')rawAll.push(r1);
-      var c3i=i+2,sm=0,nn=0;for(var j=Math.max(0,c3i-maLen+1);j<=c3i;j++){sm+=C[j].close;nn++;}var ma=sm/nn;
-      var tOK=(p.dir==='long')?(C[c3i].close>ma):(C[c3i].close<ma);
-      if(tOK){var r2=swSim(C,p,4,2,true);if(r2==='win'||r2==='loss'||r2==='scratch'){imp.push(r2);impAll.push(r2);}}}
-    var S=swStats(imp);rows.push({sym:sym,n:S.n,exp:S.n?S.exp:null});}
-  var AG=swStats(impAll),RG=swStats(rawAll);
-  function ec(e){return e===null?'var(--dim)':(e>0?'var(--green)':(e<0?'var(--red)':'var(--gold)'));}
-  var h='<b>Backtest ALL coins ('+tf+', ~150 candles each) \u2014 IMPROVED rules</b><br><br><table style="border-collapse:collapse;font-size:11px">';
-  rows.forEach(function(r){h+='<tr><td style="padding:1px 12px 1px 0">'+r.sym+'</td><td style="padding:1px 12px;color:var(--dim)">'+(r.n||0)+' tr</td><td style="padding:1px 0;color:'+ec(r.exp)+'">'+(r.exp===null?'\u2014':(r.exp>=0?'+':'')+r.exp.toFixed(2)+'R')+'</td></tr>';});
-  h+='</table><br><b>AGGREGATE (sab coins jama):</b><br>IMPROVED: '+AG.n+' trades \u00b7 Win '+AG.wr.toFixed(0)+'% \u00b7 Expectancy <b style="color:'+ec(AG.n?AG.exp:null)+'">'+(AG.exp>=0?'+':'')+AG.exp.toFixed(2)+'R</b> \u00b7 PF '+(AG.pf===Infinity?'\u221e':AG.pf.toFixed(2))+'<br>RAW: '+RG.n+' trades \u00b7 Exp '+(RG.exp>=0?'+':'')+RG.exp.toFixed(2)+'R';
-  h+='<br><br><span style="color:var(--dim);font-size:10.5px">Bada sample = behtar verdict. Aggregate Expectancy <b>+R consistently</b> ho to edge; ~0 ya \u2212R to strategy chhodo. Past hai, future guarantee nahi.</span>';
-  out.innerHTML=h;}
-var TL_OPT={k:2,W:50,tol:0.04,hold:60};
-function tlDetect(C,i){var o=TL_OPT,k=o.k,W=o.W,tol=o.tol;var hiB=[],loB=[];
-  for(var x=Math.max(k,i-W);x<=i-1-k;x++){var ih=true,il=true;
-    for(var j=x-k;j<=x+k;j++){if(j===x)continue;if(C[j].high>=C[x].high)ih=false;if(C[j].low<=C[x].low)il=false;}
-    if(ih)hiB.push(x);if(il)loB.push(x);}
-  var px=C[i].close,pxv=C[i-1].close;
-  if(hiB.length>=3){var a=hiB[hiB.length-3],b=hiB[hiB.length-2],c=hiB[hiB.length-1];var ha=C[a].high,hb=C[b].high,hc=C[c].high;
-    if(ha>hb&&hb>hc){var sl=(hc-ha)/(c-a),La=ha+sl*(b-a);
-      if(Math.abs(hb-La)<=tol*hb){var lv=ha+sl*(i-a),lvp=ha+sl*(i-1-a);
-        if(pxv<=lvp&&px>lv)return {dir:'long',i:i,entry:px,slv:lv*(1-0.001)};}}}
-  if(loB.length>=3){var a2=loB[loB.length-3],b2=loB[loB.length-2],c2=loB[loB.length-1];var la=C[a2].low,lb=C[b2].low,lc=C[c2].low;
-    if(la<lb&&lb<lc){var s2=(lc-la)/(c2-a2),Lb=la+s2*(b2-a2);
-      if(Math.abs(lb-Lb)<=tol*lb){var lv2=la+s2*(i-a2),lvp2=la+s2*(i-1-a2);
-        if(pxv>=lvp2&&px<lv2)return {dir:'short',i:i,entry:px,slv:lv2*(1+0.001)};}}}
-  return null;}
-function tlSim(C,p,rr,useBE){var entry=p.entry,sl=p.slv,W=TL_OPT.hold;
-  if(p.dir==='long'){if(entry<=sl)return 'skip';var oR=entry-sl,be=entry+oR,tp=entry+rr*oR,bh=false;
-    for(var m=p.i+1;m<C.length&&m<=p.i+W;m++){var c=C[m];
-      if(!bh){if(c.low<=sl)return 'loss';if(c.high>=tp)return 'win';if(useBE&&c.high>=be)bh=true;}
-      else{if(c.low<=entry)return 'scratch';if(c.high>=tp)return 'win';}}return 'open';}
-  if(entry>=sl)return 'skip';var o2=sl-entry,be2=entry-o2,tp2=entry-rr*o2,bh2=false;
-  for(var m2=p.i+1;m2<C.length&&m2<=p.i+W;m2++){var c2=C[m2];
-    if(!bh2){if(c2.high>=sl)return 'loss';if(c2.low<=tp2)return 'win';if(useBE&&c2.low<=be2)bh2=true;}
-    else{if(c2.high>=entry)return 'scratch';if(c2.low<=tp2)return 'win';}}return 'open';}
-function tlRun(C){var raw=[],imp=[],maLen=50;
-  for(var i=TL_OPT.k+3;i<C.length;i++){var p=tlDetect(C,i);if(!p)continue;
-    var r1=tlSim(C,p,2,false);if(r1==='win'||r1==='loss')raw.push(r1);
-    var sm=0,nn=0;for(var j=Math.max(0,i-maLen+1);j<=i;j++){sm+=C[j].close;nn++;}var ma=sm/nn;
-    var tOK=(p.dir==='long')?(C[i].close>ma):(C[i].close<ma);
-    if(tOK){var r2=tlSim(C,p,2,true);if(r2==='win'||r2==='loss'||r2==='scratch')imp.push(r2);}}
-  return {raw:raw,imp:imp};}
-function tlBacktest(){var C=state.candles,out=$('#tlOut');if(!out)return;out.style.display='';
-  if(!C||C.length<60){out.textContent='60+ candles chahiye \u2014 coin/TF load hone do.';return;}
-  var R=tlRun(C),A=swStats(R.raw),I=swStats(R.imp);
-  function pf(x){return x===Infinity?'\u221e':x.toFixed(2);}
-  function blk(t,S){return '<b>'+t+'</b><br>Trades: '+S.n+' (W '+S.w+' / L '+S.l+(S.sc?' / BE '+S.sc:'')+')<br>Win: <b style="color:'+(S.wr>=40?'var(--green)':'var(--red)')+'">'+S.wr.toFixed(0)+'%</b> &middot; Expectancy: <b style="color:'+(S.exp>0?'var(--green)':'var(--red)')+'">'+(S.exp>=0?'+':'')+S.exp.toFixed(2)+'R</b>/trade &middot; PF '+pf(S.pf)+' &middot; Max loss streak '+S.mcl;}
-  out.innerHTML='<b>Trend Line Break \u2014 '+activeSym+' ('+state.tf+', '+C.length+' candles)</b><br><br>'+blk('RAW (all breaks, plain 1:2)',A)+'<br><br>'+blk('IMPROVED (trend filter + breakeven)',I)+'<br><br><span style="color:var(--dim);font-size:10.5px">Auto-approx. Expectancy <b>+R</b>=edge. Chhota sample=shor. Past hai, future guarantee nahi.</span>';}
-async function tlDeepTest(){var out=$('#tlOut');if(!out)return;out.style.display='';
-  var tfs=['15m','30m','1h','2h','4h','1D'],coins=swCoins();
-  out.innerHTML='DEEP TEST (Trend Line) chal raha hai \u2014 '+coins.length+'\u00d7'+tfs.length+' combos. Thoda ruko (~30-60s)\u2026';
-  var grand=[],perTf={};
-  for(var ti=0;ti<tfs.length;ti++){var tf=tfs[ti],bucket=[];
-    for(var ci=0;ci<coins.length;ci++){var sym=coins[ci],C=null;
-      try{C=await swFetch(sym,tf);}catch(e){}
-      if(C&&C.length>1&&C[0].time>C[C.length-1].time)C.sort(function(a,b){return a.time-b.time;});
-      if(!C||C.length<60)continue;
-      var R=tlRun(C);for(var z=0;z<R.imp.length;z++){bucket.push(R.imp[z]);grand.push(R.imp[z]);}}
-    perTf[tf]=swStats(bucket);}
-  var G=swStats(grand);
-  function ec(e,n){return(!n)?'var(--dim)':(e>0?'var(--green)':(e<0?'var(--red)':'var(--gold)'));}
-  var h='<b>DEEP TEST \u2014 Trend Line Break \u00b7 all coins \u00d7 all TFs</b><br><br><table style="border-collapse:collapse;font-size:11px"><tr style="color:var(--dim)"><td style="padding:1px 14px 1px 0">TF</td><td style="padding:1px 14px">trades</td><td>Expectancy</td></tr>';
-  tfs.forEach(function(tf){var S=perTf[tf];h+='<tr><td style="padding:1px 14px 1px 0">'+tf+'</td><td style="padding:1px 14px;color:var(--dim)">'+S.n+'</td><td style="color:'+ec(S.exp,S.n)+'">'+(S.n?((S.exp>=0?'+':'')+S.exp.toFixed(2)+'R'):'\u2014')+'</td></tr>';});
-  h+='</table><br><b style="font-size:13px">GRAND TOTAL (sab jama):</b><br>'+G.n+' trades \u00b7 Win '+G.wr.toFixed(0)+'% \u00b7 Expectancy <b style="font-size:14px;color:'+ec(G.exp,G.n)+'">'+(G.exp>=0?'+':'')+G.exp.toFixed(2)+'R</b> \u00b7 PF '+(G.pf===Infinity?'\u221e':G.pf.toFixed(2))+' \u00b7 Max loss streak '+G.mcl+'<br><br><span style="color:var(--dim);font-size:10.5px">Auto-approx (discretionary method ka). +R = ishaara edge ka, par exact hand-drawn nahi. Past hai, future guarantee nahi.</span>';
-  out.innerHTML=h;}
-function tlInit(){var b=$('#tlBtBtn');if(b)b.addEventListener('click',tlBacktest);var d=$('#tlDeepBtn');if(d)d.addEventListener('click',tlDeepTest);}
-function swInit(){
-  var ba=$('#swBtAllBtn');if(ba)ba.addEventListener('click',swBacktestAll);
-  var db=$('#swDeepBtn');if(db)db.addEventListener('click',swDeepTest);
-  var tf=$('#swTf');if(tf)tf.addEventListener('click',function(e){var b=e.target.closest('[data-swtf]');if(!b)return;document.querySelectorAll('#swTf .chip').forEach(function(x){x.classList.remove('on');});b.classList.add('on');swScanTf=b.dataset.swtf;});
-  var sb=$('#swScanBtn');if(sb)sb.addEventListener('click',swScan);
-  var au=$('#swAuto');if(au)au.addEventListener('click',function(){if(swAutoTimer){clearInterval(swAutoTimer);swAutoTimer=null;au.classList.remove('on');au.textContent='Auto: off';}else{swAutoTimer=setInterval(swScan,300000);au.classList.add('on');au.textContent='Auto: ON (5m)';swScan();}});
-  var al=$('#swAlertBtn');if(al)al.addEventListener('click',function(){if(swAlertOn){swAlertOn=false;al.classList.remove('on');al.textContent='Alerts off';return;}if('Notification'in window){Notification.requestPermission().then(function(pp){swAlertOn=(pp==='granted');al.classList.toggle('on',swAlertOn);al.textContent=swAlertOn?'Alerts ON':'Alerts off';});}});
-  var bt=$('#swBtBtn');if(bt)bt.addEventListener('click',swBacktest);}
 function render(){
   const c=state.candles;if(!c.length)return;
   analysis=analyze(c);
@@ -2986,7 +2789,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();swInit();tdInit();tlInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
