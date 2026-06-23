@@ -1064,6 +1064,86 @@
     <div class="jr-tablewrap"><table class="jr-table"><thead><tr><th>Side</th><th>Entry</th><th>Exit</th><th>Size</th><th>Lev</th><th>Why</th><th>P/L</th></tr></thead><tbody id="dmHistBody"></tbody></table></div>
   </div>
 
+
+  <style>
+  .af-banner{background:linear-gradient(90deg,rgba(240,185,11,.16),rgba(240,185,11,.04));border:1px solid rgba(240,185,11,.5);border-radius:10px;padding:9px 12px;font-size:11px;color:var(--gold);font-weight:700;letter-spacing:.04em;margin-bottom:12px}
+  .af-banner b{color:var(--txt)}
+  .af-ctrlrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+  .af-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .af-btn:hover{border-color:var(--gold)}
+  #afToggle.on{background:rgba(34,199,132,.16);border-color:var(--green);color:var(--green)}
+  .af-state{margin-left:auto;font-family:var(--disp);font-weight:700;font-size:13px}
+  .af-tf{font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
+  .af-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+  .af-stat{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 10px}
+  .af-stat .k{font-size:9px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+  .af-stat .v{font-family:var(--disp);font-weight:700;font-size:15px}
+  .af-note{font-size:11px;color:var(--muted);line-height:1.6;margin:6px 0 12px}
+  .af-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:760px){.af-grid2{grid-template-columns:1fr}.af-statgrid{grid-template-columns:repeat(2,1fr)}}
+  .af-sub{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin:0 0 8px}
+  .af-chk{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+  .af-chk-i{font-weight:700;width:14px;text-align:center}
+  .af-chk-l{flex:1;color:var(--txt)}
+  .af-chk-v{font-family:var(--mono);font-size:11px}
+  .af-chk-sum{font-size:11px;font-weight:700;margin-top:8px;letter-spacing:.03em}
+  .af-poscard{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:11px 12px}
+  .af-posrow{display:flex;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:5px}
+  .af-posmeta{font-size:11px;color:var(--muted);line-height:1.6}
+  .af-empty{font-size:11px;color:var(--dim);padding:10px;text-align:center}
+  .af-feed{max-height:200px;overflow-y:auto;background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:6px 10px}
+  .af-feed-row{display:flex;gap:9px;font-size:11px;line-height:1.7;border-bottom:1px solid rgba(255,255,255,.03);padding:2px 0}
+  .af-feed-t{color:var(--dim);font-family:var(--mono);font-size:10px;flex-shrink:0}
+  .af-seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .af-seg button{background:transparent;border:0;color:var(--dim);padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+  .af-seg button.on{background:rgba(240,185,11,.16);color:var(--gold)}
+  .af-seglbl{font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-right:8px}
+  .af-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+  .af-split-cell{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .af-split-h{font-size:10px;font-weight:700;letter-spacing:.1em;margin-bottom:3px}
+  .af-split-b{font-size:11px;color:var(--muted)}
+  </style>
+  <div class="sec-title">Alfajar <span style="font-size:9px;color:var(--gold);letter-spacing:.1em">AUTONOMOUS PAPER AGENT &middot; SIMULATION</span></div>
+  <div class="card" id="afPanel">
+    <div class="af-banner">&#128679; SIMULATION ONLY &mdash; virtual <b>$10,000</b>, <b>no real money</b>, no exchange, no keys. Alfajar terminal ke apne signals padh kar khud paper-trades kholta/band karta hai, har trade pe <b>real taker fee</b> lagti hai, aur sab kuch is browser mein save hota hai. Yeh prediction nahi &mdash; 2-mahine ka honest test.</div>
+
+    <div class="af-ctrlrow">
+      <button class="af-btn" id="afToggle">&#9654; Start agent</button>
+      <button class="af-btn" id="afResetBtn">Reset</button>
+      <button class="af-btn" id="afExport">Export</button>
+      <button class="af-btn" id="afImport">Import</button>
+      <input type="file" id="afFile" accept="application/json" style="display:none">
+      <span class="af-state" id="afState">STOPPED</span>
+    </div>
+    <div class="af-ctrlrow" style="margin-bottom:8px">
+      <span class="af-seglbl">Mode</span>
+      <span class="af-seg">
+        <button id="afMode-long">Long</button>
+        <button id="afMode-short">Short</button>
+        <button id="afMode-both">Both</button>
+      </span>
+    </div>
+    <div class="af-tf">Running on: <span id="afTf">&mdash;</span> &middot; risk 1%/trade (1R) &middot; target +2R &middot; 1-hour life</div>
+
+    <div class="af-statgrid" id="afStats"></div>
+    <div class="af-note" id="afExpNote"></div>
+    <div class="af-split" id="afSplit"></div>
+
+    <div class="af-grid2">
+      <div>
+        <div class="af-sub" id="afChkHead">Live entry checklist (all 7 must pass)</div>
+        <div id="afChecklist"></div>
+        <div class="af-sub" style="margin-top:14px">Current position</div>
+        <div id="afPos"></div>
+      </div>
+      <div>
+        <div class="af-sub">Activity log</div>
+        <div class="af-feed" id="afFeed"></div>
+        <div class="af-note" style="margin-top:10px">Exit logic: <b>+2R TP</b> ya <b>−1R SL</b> jo pehle lage. Ghante par dono na lagein to <b>time-stop</b>. Profit &ge; $10 &rarr; foran band (greed se bachao). Profit &gt; 0 magar &lt; $10 aur bias+confluence abhi bhi qaayam &rarr; <b>ek</b> 1-hour extension (logged). Agent sirf tab chalta hai jab tab khula ho; data session ke beech save rehta hai.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="sec-title">Signal Track Record <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">HONESTY LOG &middot; KYA DASHBOARD THEEK HAI?</span></div>
   <div class="card">
     <div class="note" style="margin-bottom:14px">Jab bhi dashboard koi signal de, <b>"Log current signal"</b> dabayein &mdash; ye abhi ka <b>verdict, price aur Scenario ka target</b> mehfooz kar leta hai. Phir chuni hui muddat (default <b>24h</b>) ke andar agar price pehle <b>Target (+2&times;ATR)</b> chhoo le &rarr; <span style="color:var(--green)">WIN +2R</span>; agar pehle <b>Stop (&minus;1&times;ATR)</b> lag jaye &rarr; <span style="color:var(--red)">LOSS &minus;1R</span>; window khatam to <span style="color:var(--gold)">TIMEOUT</span> (market par close). Neeche <b>win-rate aur expectancy (R)</b> khud banti jaati hai. Niche accuracy khud-ba-khud banti jaati hai. <b style="color:var(--gold)">Yaad rahe:</b> achhi accuracy bhi mustaqbil ki <span class="hl">guarantee nahi</span> &mdash; ye sirf dashboard ko jawabdeh rakhta hai, aur number tabhi maani rakhta hai jab <b>sample bada ho</b> (kam se kam ~20&ndash;30 logs).</div>
@@ -1387,6 +1467,7 @@ function render(){
   renderTVRegime();renderVolRisk();renderBreadth();
   renderNowTool();
   demoTick();
+  if(typeof afTick==='function')afTick();
   if(!calcTouched)prefillCalc();
 }
 function drawVol(){
@@ -2103,6 +2184,283 @@ function demoInit(){
   demoRender();
 }
 
+/* ============================================================================
+   ALFAJAR — Autonomous paper-trading agent (v1.1: long / short / both)
+   Paper only. No real money, no keys, no execution. Reads signals the
+   terminal already computes, sizes by risk, applies fees, logs honestly.
+   Namespaced 'af*' to avoid collision with Alert Center (al*).
+   ============================================================================ */
+const AF_KEY='btc_alfajar';
+const AF_START=10000;            // virtual USDT
+const AF_FEE=0.0005;             // 0.05% taker, PER SIDE (honest fee model)
+const AF_RISK_PCT=1;             // risk 1% of equity per trade = 1R
+const AF_SL_ATR=1.0;             // stop = 1.0 x ATR from entry
+const AF_RR=2.0;                 // target = +2R  (1:2)
+const AF_HOLD_MS=3600000;        // hard life: 1 hour
+const AF_MIN_PROFIT=10;          // $ — time-exit minimum-profit rule
+const AF_DAILY_STOP_R=3;         // pause the day after -3R realized
+const AF_CONF_MIN=4;             // confluence >= 4 / 5
+const AF_OPP_MIN=80;             // opportunity >= 80 / 100
+const AF_RISK_MAX=15;            // risk <= 15 / 100
+const AF_RSI_L_LO=50, AF_RSI_L_HI=70;  // long rsi window
+const AF_RSI_S_LO=30, AF_RSI_S_HI=50;  // short rsi window (mirror)
+const AF_ATR_BARS=70;            // ATR percentile lookback
+const AF_ATR_PCTL=0.50;          // current ATR must sit >= 50th pctile
+
+let af={on:false,mode:'long',balance:AF_START,start:AF_START,pos:null,history:[],
+        dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[]};
+
+function afLoad(){try{const r=localStorage.getItem(AF_KEY);if(r){const d=JSON.parse(r);
+  if(d&&typeof d.balance==='number'){af=d;
+    if(!Array.isArray(af.history))af.history=[];
+    if(!Array.isArray(af.feed))af.feed=[];
+    if(typeof af.start!=='number')af.start=AF_START;
+    if(typeof af.maxEq!=='number')af.maxEq=af.start;
+    if(typeof af.maxDD!=='number')af.maxDD=0;
+    if(af.mode!=='long'&&af.mode!=='short'&&af.mode!=='both')af.mode='long';
+    if(af.pos===undefined)af.pos=null;}}}catch(e){}}
+function afSave(){try{localStorage.setItem(AF_KEY,JSON.stringify(af));}catch(e){}}
+function afLog(msg,kind){af.feed.unshift({t:Date.now(),m:msg,k:kind||'info'});
+  if(af.feed.length>40)af.feed.length=40;afSave();}
+
+function afPrice(){return (analysis&&analysis.price)?analysis.price:null;}
+function afGross(pos,price){return (pos.dir==='long'?1:-1)*(price-pos.entry)*pos.size;}
+function afFeeRound(pos,price){return pos.entry*pos.size*AF_FEE + price*pos.size*AF_FEE;}
+function afNet(pos,price){return afGross(pos,price)-afFeeRound(pos,price);}
+function afEquity(){let eq=af.balance;if(af.pos){const p=afPrice();if(p!=null&&af.pos.sym===activeSym)eq+=afNet(af.pos,p);}return eq;}
+
+/* ATR(14)% percentile over last AF_ATR_BARS bars on the ACTIVE timeframe */
+function afAtrPctile(){
+  const c=(typeof state!=='undefined'&&state.candles)?state.candles:[];
+  if(c.length<AF_ATR_BARS+16)return {ok:false,cur:0,rank:0,enough:false};
+  const tr=[];for(let i=1;i<c.length;i++){tr.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));}
+  const ap=[];for(let i=13;i<tr.length;i++){let s=0;for(let j=i-13;j<=i;j++)s+=tr[j];const atr=s/14;const close=c[i+1].close;if(close>0)ap.push(atr/close*100);}
+  if(ap.length<AF_ATR_BARS)return {ok:false,cur:0,rank:0,enough:false};
+  const win=ap.slice(-AF_ATR_BARS),cur=win[win.length-1];
+  const rank=win.filter(x=>x<=cur).length/win.length;
+  return {ok:rank>=AF_ATR_PCTL,cur:cur,rank:rank,enough:true};
+}
+
+/* Build the 7-point checklist for a SPECIFIC direction */
+function afDirFilters(dir){
+  const a=analysis;const checks=[];let pass=true;
+  const isL=dir==='long';
+  // 1 composite bias
+  const biasOk=isL?(a.verdict==='BULLISH'):(a.verdict==='BEARISH');
+  checks.push({k:'bias',label:'Composite Bias = '+(isL?'Bullish':'Bearish'),ok:biasOk,val:a.verdict});
+  // 2 multi-timeframe all one way
+  const t15=(typeof tfTrend==='function')?tfTrend(mtfData['15m']):null,t1=(typeof tfTrend==='function')?tfTrend(mtfData['1h']):null,t4=(typeof tfTrend==='function')?tfTrend(mtfData['4h']):null;
+  const want=isL?'BULL':'BEAR';
+  const mtfOk=(t15===want&&t1===want&&t4===want);
+  checks.push({k:'mtf',label:'Multi-TF 15m/1h/4h all '+(isL?'Bullish':'Bearish'),ok:mtfOk,val:[t15,t1,t4].map(x=>x?x.toLowerCase():'—').join(' / ')});
+  // 3 confluence
+  const buys=a.sigs.filter(x=>x.t==='buy').length,sells=a.sigs.filter(x=>x.t==='sell').length;
+  const cc=isL?buys:sells;
+  checks.push({k:'conf',label:'Confluence ≥ 4/5 '+(isL?'bullish':'bearish'),ok:cc>=AF_CONF_MIN,val:cc+'/5'});
+  // 4 opportunity & 5 risk (direction-neutral)
+  const orr=(typeof oppRisk==='function')?oppRisk():null;const opp=orr?orr.opp:0,risk=orr?orr.risk:100;
+  checks.push({k:'opp',label:'Opportunity ≥ 80/100',ok:opp>=AF_OPP_MIN,val:opp+'/100'});
+  checks.push({k:'risk',label:'Risk ≤ 15/100',ok:risk<=AF_RISK_MAX,val:risk+'/100'});
+  // 6 rsi window (mirrored)
+  const rsi=(a.rsiNow!=null)?a.rsiNow:50;
+  const rOk=isL?(rsi>AF_RSI_L_LO&&rsi<AF_RSI_L_HI):(rsi>AF_RSI_S_LO&&rsi<AF_RSI_S_HI);
+  checks.push({k:'rsi',label:'RSI '+(isL?'50–70':'30–50'),ok:rOk,val:fmt(rsi,1)});
+  // 7 atr percentile (direction-neutral)
+  const ap=afAtrPctile();
+  checks.push({k:'atr',label:'ATR > 70-bar percentile',ok:ap.ok,val:ap.enough?(Math.round(ap.rank*100)+'th pctl'):'warming up'});
+  checks.forEach(c=>{if(!c.ok)pass=false;});
+  return {pass:pass,checks:checks,dir:dir,opp:opp,risk:risk};
+}
+
+/* Decide which direction Alfajar is watching, given mode + current bias */
+function afFilters(){
+  const a=analysis;
+  if(!a||!a.sigs)return {pass:false,warm:true,dir:'long',checks:[{k:'data',label:'Live data load ho raha hai…',ok:false,val:''}]};
+  const cand=a.verdict==='BULLISH'?'long':a.verdict==='BEARISH'?'short':null;
+  let dir;
+  if(af.mode==='long')dir='long';
+  else if(af.mode==='short')dir='short';
+  else dir=cand||'long';            // both: follow bias; neutral -> show long template
+  return afDirFilters(dir);
+}
+
+function afRolloverDay(){const k=new Date().toISOString().slice(0,10);if(af.dayKey!==k){af.dayKey=k;af.dayR=0;if(af.paused){af.paused=false;afLog('Naya din — daily loss-guard reset, agent dobara active.','info');}afSave();}}
+
+function afEvaluateEntry(){
+  if(!af.on||af.paused||af.pos)return;
+  const c=(typeof state!=='undefined'&&state.candles)?state.candles:[];
+  if(!c.length)return;
+  const barT=c[c.length-1].time||0;
+  if(barT===af.lastBarT)return;        // one evaluation per new bar
+  af.lastBarT=barT;
+  const f=afFilters();
+  if(f.warm)return;
+  if(f.pass)afOpen(f);
+}
+
+function afOpen(f){
+  const dir=f.dir,isL=dir==='long';
+  const entry=afPrice();if(entry==null)return;
+  const atr=analysis.atr;if(!atr||atr<=0)return;
+  const slDist=AF_SL_ATR*atr;
+  const sl=isL?entry-slDist:entry+slDist;
+  const tp=isL?entry+AF_RR*slDist:entry-AF_RR*slDist;
+  const eq=afEquity();const riskAmt=eq*AF_RISK_PCT/100;
+  const size=riskAmt/slDist;if(!isFinite(size)||size<=0)return;
+  af.pos={id:Date.now()+''+Math.floor(Math.random()*1000),sym:activeSym,dir:dir,
+    entry:entry,size:size,riskAmt:riskAmt,sl:sl,tp:tp,
+    openTime:Date.now(),deadline:Date.now()+AF_HOLD_MS,extended:false,
+    tf:(typeof state!=='undefined'?state.tf:'?'),lastMark:entry};
+  afLog((isL?'▲ LONG':'▼ SHORT')+' opened @ $'+fmt(entry,1)+' · size '+fmt(size,4)+' '+activeSym+' · SL $'+fmt(sl,1)+' · TP $'+fmt(tp,1)+' (1:2) · risk $'+fmt(riskAmt,2)+' — all 7 filters passed.','open');
+  afSave();afRender();
+}
+
+function afClose(reason,price){
+  const p=af.pos;if(!p)return;
+  const gross=afGross(p,price);const fee=afFeeRound(p,price);const net=gross-fee;
+  af.balance+=net;
+  const R=p.riskAmt>0?net/p.riskAmt:0;
+  af.dayR+=R;
+  af.history.unshift({id:p.id,sym:p.sym,dir:p.dir,entry:p.entry,exit:price,size:p.size,
+    riskAmt:p.riskAmt,gross:gross,fee:fee,pnl:net,R:R,reason:reason,
+    openTime:p.openTime,closeTime:Date.now(),tf:p.tf,extended:p.extended});
+  if(af.history.length>500)af.history.length=500;
+  af.pos=null;
+  const tag=(reason==='TP')?'✓ TP +2R':(reason==='SL')?'✗ SL −1R':(reason==='TIME+')?'⏱ Time-exit (profit)':(reason==='TIME')?'⏱ Time-exit':reason;
+  afLog(tag+' @ $'+fmt(price,1)+' · P/L '+(net>=0?'+':'−')+'$'+fmt(Math.abs(net),2)+' ('+(R>=0?'+':'')+fmt(R,2)+'R) · fee $'+fmt(fee,2),net>=0?'win':'loss');
+  if(af.dayR<=-AF_DAILY_STOP_R&&!af.paused){af.paused=true;afLog('⚠ Daily loss-guard: −'+AF_DAILY_STOP_R+'R hit aaj. Agent kal tak paused.','warn');}
+  afSave();afRender();
+}
+
+function afManage(){
+  const p=af.pos;if(!p)return;
+  if(p.sym!==activeSym){afRender();return;}   // can't see correct price for another coin
+  const price=afPrice();if(price==null)return;
+  p.lastMark=price;const isL=p.dir==='long';
+  // hard SL / TP first (direction-aware)
+  if(isL){if(price<=p.sl){afClose('SL',p.sl);return;}if(price>=p.tp){afClose('TP',p.tp);return;}}
+  else   {if(price>=p.sl){afClose('SL',p.sl);return;}if(price<=p.tp){afClose('TP',p.tp);return;}}
+  // time-stop with min-profit + one-extension rule
+  const now=Date.now();
+  if(now>=p.deadline){
+    const net=afNet(p,price);
+    if(net>=AF_MIN_PROFIT){afClose('TIME+',price);return;}
+    if(net>0){
+      const biasOk=analysis&&(isL?analysis.verdict==='BULLISH':analysis.verdict==='BEARISH');
+      const cc=(analysis&&analysis.sigs)?analysis.sigs.filter(x=>x.t===(isL?'buy':'sell')).length:0;
+      if(!p.extended&&biasOk&&cc>=AF_CONF_MIN){
+        p.extended=true;p.deadline=now+AF_HOLD_MS;
+        afLog('⏱ 1h mark: profit $'+fmt(net,2)+' < $'+AF_MIN_PROFIT+' but bias+confluence hold → ek 1h extension (logged).','info');
+        afSave();
+      } else {afClose('TIME+',price);}
+      return;
+    }
+    afClose('TIME',price);return;   // net <= 0 at deadline
+  }
+  afRender();
+}
+
+/* stats over history (optionally filtered by direction) */
+function afStats(dir){
+  const h=dir?af.history.filter(t=>t.dir===dir):af.history;
+  const n=h.length,wins=h.filter(t=>t.pnl>0).length;
+  const net=h.reduce((a,t)=>a+t.pnl,0);
+  const expR=n?h.reduce((a,t)=>a+t.R,0)/n:0;
+  const gp=h.filter(t=>t.pnl>0).reduce((a,t)=>a+t.pnl,0);
+  const gl=h.filter(t=>t.pnl<0).reduce((a,t)=>a+Math.abs(t.pnl),0);
+  const pf=gl>0?gp/gl:(gp>0?Infinity:0);
+  return {n:n,wins:wins,wr:n?wins/n*100:0,net:net,expR:expR,pf:pf};
+}
+
+function afStatCard(k,v,col){return '<div class="af-stat"><div class="k">'+k+'</div><div class="v" style="color:'+(col||'var(--txt)')+'">'+v+'</div></div>';}
+
+function afRender(){
+  const root=$('#afPanel');if(!root)return;
+  const eq=afEquity();if(eq>af.maxEq)af.maxEq=eq;const dd=af.maxEq>0?(af.maxEq-eq)/af.maxEq*100:0;if(dd>af.maxDD){af.maxDD=dd;}
+  // mode buttons
+  ['long','short','both'].forEach(m=>{const b=$('#afMode-'+m);if(b)b.classList.toggle('on',af.mode===m);});
+  // toggle
+  const tg=$('#afToggle');if(tg){tg.textContent=af.on?'⏸ Pause agent':'▶ Start agent';tg.classList.toggle('on',af.on);}
+  // state line
+  const stt=$('#afState');
+  if(stt){let s,col;
+    if(af.paused){s='PAUSED (daily guard)';col='var(--gold)';}
+    else if(!af.on){s='STOPPED';col='var(--dim)';}
+    else if(af.pos){s='IN TRADE · '+af.pos.dir.toUpperCase();col=af.pos.dir==='long'?'var(--green)':'var(--red)';}
+    else {s='ARMED · waiting for setup';col='var(--green)';}
+    stt.textContent=s;stt.style.color=col;}
+  const modeTxt=af.mode==='long'?'long-only':af.mode==='short'?'short-only':'long + short';
+  const tfEl=$('#afTf');if(tfEl)tfEl.textContent=(typeof state!=='undefined'?state.tf:'?')+' · '+activeSym+'USDT · '+modeTxt;
+  // stats (overall)
+  const st=afStats();const roi=(eq-af.start)/af.start*100;
+  const sb=$('#afStats');if(sb)sb.innerHTML=
+    afStatCard('Equity','$'+fmt(eq,2),eq>=af.start?'var(--green)':'var(--red)')+
+    afStatCard('ROI',(roi>=0?'+':'')+fmt(roi,2)+'%',roi>=0?'var(--green)':'var(--red)')+
+    afStatCard('Net P/L (after fees)',(st.net>=0?'+':'−')+'$'+fmt(Math.abs(st.net),2),st.net>=0?'var(--green)':'var(--red)')+
+    afStatCard('Trades',''+st.n,'var(--txt)')+
+    afStatCard('Expectancy',(st.n?((st.expR>=0?'+':'')+fmt(st.expR,2)+'R'):'—'),st.expR>=0?'var(--green)':'var(--red)')+
+    afStatCard('Win-rate',(st.n?fmt(st.wr,0)+'%':'—'),'var(--txt)')+
+    afStatCard('Profit factor',(st.n?(isFinite(st.pf)?fmt(st.pf,2):'∞'):'—'),'var(--txt)')+
+    afStatCard('Max drawdown','−'+fmt(af.maxDD,2)+'%','var(--red)');
+  // split stats (long vs short)
+  const sp=$('#afSplit');
+  if(sp){const l=afStats('long'),s2=afStats('short');
+    const cell=(name,x,col)=>'<div class="af-split-cell"><div class="af-split-h" style="color:'+col+'">'+name+'</div><div class="af-split-b">'+(x.n?('<b>'+(x.expR>=0?'+':'')+fmt(x.expR,2)+'R</b> · '+x.n+' trades · '+fmt(x.wr,0)+'% · net '+(x.net>=0?'+':'−')+'$'+fmt(Math.abs(x.net),2)):'koi trade nahi')+'</div></div>';
+    sp.innerHTML=cell('LONG',l,'var(--green)')+cell('SHORT',s2,'var(--red)');}
+  // expectancy honesty note
+  const en=$('#afExpNote');if(en){
+    if(st.n<40)en.innerHTML='Sirf <b>'+st.n+'</b> trades — abhi koi nateeja nahi. Expectancy <b>40+ trades</b> ke baad hi maani rakhta hai (per direction alag se). Win-rate akela jhoota hota hai.';
+    else en.innerHTML='<b>'+st.n+'</b> trades. Overall expectancy <b>'+(st.expR>=0?'+':'')+fmt(st.expR,2)+'R</b> after fees. Long/short ko upar alag dekho — ho sakta hai ek direction mein edge ho, doosri mein nahi.';
+  }
+  // position card
+  const pc=$('#afPos');
+  if(pc){
+    if(!af.pos){pc.innerHTML='<div class="af-empty">Koi open trade nahi. Agent armed ho to setup milte hi khud trade kholega.</div>';}
+    else{const p=af.pos;const price=(p.sym===activeSym)?afPrice():p.lastMark;const net=price!=null?afNet(p,price):0;
+      const left=Math.max(0,p.deadline-Date.now());const mm=Math.floor(left/60000),ssx=Math.floor((left%60000)/1000);
+      const dcol=p.dir==='long'?'var(--green)':'var(--red)';
+      pc.innerHTML='<div class="af-poscard">'+
+        '<div class="af-posrow"><span style="color:'+dcol+'">'+p.dir.toUpperCase()+' '+p.sym+(p.sym!==activeSym?' <span style="color:var(--gold);font-size:9px">switch to '+p.sym+' to track</span>':'')+'</span><span style="color:'+(net>=0?'var(--green)':'var(--red)')+'">'+(net>=0?'+':'−')+'$'+fmt(Math.abs(net),2)+'</span></div>'+
+        '<div class="af-posmeta">Entry $'+fmt(p.entry,1)+' · SL $'+fmt(p.sl,1)+' · TP $'+fmt(p.tp,1)+' · size '+fmt(p.size,4)+'</div>'+
+        '<div class="af-posmeta">Time left: <b>'+mm+'m '+ssx+'s</b>'+(p.extended?' · <span style="color:var(--gold)">extended once</span>':'')+' · risk $'+fmt(p.riskAmt,2)+' (1R)</div>'+
+        '</div>';}
+  }
+  // checklist (for the direction Alfajar is currently watching)
+  const cl=$('#afChecklist');const clh=$('#afChkHead');
+  const f=afFilters();
+  if(clh)clh.textContent='Live entry checklist — '+(f.dir?f.dir.toUpperCase():'—')+' (all 7 must pass)';
+  if(cl){
+    cl.innerHTML=f.checks.map(c=>'<div class="af-chk"><span class="af-chk-i" style="color:'+(c.ok?'var(--green)':'var(--dim)')+'">'+(c.ok?'✓':'○')+'</span><span class="af-chk-l">'+c.label+'</span><span class="af-chk-v" style="color:'+(c.ok?'var(--green)':'var(--dim)')+'">'+c.val+'</span></div>').join('')+
+      '<div class="af-chk-sum" style="color:'+(f.pass?(f.dir==='long'?'var(--green)':'var(--red)'):'var(--dim)')+'">'+(f.warm?'Warming up…':(f.pass?'ALL PASS — '+f.dir.toUpperCase()+' trigger ready (next bar)':'Waiting — sab shartein poori nahi'))+'</div>';
+  }
+  // feed
+  const fd=$('#afFeed');
+  if(fd){if(!af.feed.length){fd.innerHTML='<div class="af-empty">Activity log yahan aayega.</div>';}
+    else fd.innerHTML=af.feed.map(e=>{const col=e.k==='win'?'var(--green)':e.k==='loss'?'var(--red)':e.k==='open'?'var(--gold)':e.k==='warn'?'var(--gold)':'var(--muted)';
+      const tm=new Date(e.t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+      return '<div class="af-feed-row"><span class="af-feed-t">'+tm+'</span><span style="color:'+col+'">'+e.m+'</span></div>';}).join('');}
+}
+
+function afTick(){if(typeof af==='undefined'||!af)return;afRolloverDay();if(af.pos)afManage();else if(af.on&&!af.paused)afEvaluateEntry();afRender();}
+
+function afSetMode(m){if(m!=='long'&&m!=='short'&&m!=='both')return;af.mode=m;afLog('Mode set: '+(m==='long'?'long-only':m==='short'?'short-only':'long + short')+'.','info');afSave();afRender();}
+function afToggle(){af.on=!af.on;afLog(af.on?'▶ Agent started — armed ('+af.mode+') on '+(typeof state!=='undefined'?state.tf:'?')+'.':'⏸ Agent paused by user.','info');afSave();afRender();}
+function afReset(){if(typeof confirm==='function'&&!confirm('Reset Alfajar paper account to $'+fmt(AF_START,0)+'? Clears its position, history and log.'))return;
+  const keepMode=af.mode;
+  af={on:false,mode:keepMode,balance:AF_START,start:AF_START,pos:null,history:[],dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[]};
+  afLog('Account reset to $'+fmt(AF_START,0)+'.','info');afSave();afRender();}
+
+function afInit(){
+  afLoad();
+  const tg=$('#afToggle');if(tg)tg.addEventListener('click',afToggle);
+  const rs=$('#afResetBtn');if(rs)rs.addEventListener('click',afReset);
+  ['long','short','both'].forEach(m=>{const b=$('#afMode-'+m);if(b)b.addEventListener('click',()=>afSetMode(m));});
+  const ex=$('#afExport');if(ex)ex.addEventListener('click',()=>{const blob=new Blob([JSON.stringify(af,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alfajar-account.json';a.click();});
+  const im=$('#afImport');if(im)im.addEventListener('click',()=>$('#afFile').click());
+  const fl=$('#afFile');if(fl)fl.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);if(d&&typeof d.balance==='number'){af=d;af.history=af.history||[];af.feed=af.feed||[];if(af.mode!=='long'&&af.mode!=='short'&&af.mode!=='both')af.mode='long';afSave();afRender();afLog('✓ Account imported.','info');}}catch(err){afLog('⚠ File read nahi hui.','warn');}};rd.readAsText(file);});
+  afRender();
+}
+
 const PYCODE="\"\"\"\nshort_trader.py\n================\nCore futures short-selling logic for a Bitcoin trading terminal, built on CCXT\nagainst Binance USDT-M Futures (fapi).\n\nSAFETY DEFAULTS (deliberate):\n  * testnet=True            -> runs against Binance's PAPER-TRADING sandbox, no real money.\n  * leverage=1              -> no amplification until you explicitly raise it.\n  * reduce_only on closes   -> a close can never accidentally flip into a new position.\n\nYou provide your own API keys via environment variables. Never hard-code keys.\n\n    export BINANCE_API_KEY=\"...\"\n    export BINANCE_API_SECRET=\"...\"\n\nDependencies:\n    pip install ccxt\n\n------------------------------------------------------------------------------\nIMPORTANT, PLEASE READ\n------------------------------------------------------------------------------\nThis is educational scaffolding for your own use, not financial advice and not a\n\"money-making\" guarantee. Short selling with leverage can lose more than your\nmargin and can be liquidated on a sharp move up. Test on the sandbox until you\nfully trust the behaviour, start with leverage=1 and tiny size, and never risk\nfunds you cannot afford to lose.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport os\nimport time\nfrom dataclasses import dataclass, field\nfrom typing import Optional, Dict, Any\n\nimport ccxt\n\n\n# --------------------------------------------------------------------------- #\n#  Connection\n# --------------------------------------------------------------------------- #\ndef build_exchange(testnet: bool = True) -> ccxt.binance:\n    \"\"\"\n    Create and return a configured CCXT Binance USDT-M Futures client.\n\n    Args:\n        testnet: when True (default) all calls hit Binance's sandbox / paper\n                 trading endpoint, so NO real funds are touched. Flip to False\n                 only when you have tested thoroughly and accept real risk.\n\n    Keys are read from BINANCE_API_KEY / BINANCE_API_SECRET in the environment.\n    \"\"\"\n    exchange = ccxt.binance({\n        \"apiKey\": os.getenv(\"BINANCE_API_KEY\", \"\"),\n        \"secret\": os.getenv(\"BINANCE_API_SECRET\", \"\"),\n        \"enableRateLimit\": True,            # be polite to the API, avoid bans\n        \"options\": {\n            \"defaultType\": \"future\",        # USDT-M futures, not spot\n        },\n    })\n\n    if testnet:\n        # Routes every request to the Binance Futures testnet (fake money).\n        exchange.set_sandbox_mode(True)\n\n    exchange.load_markets()\n    return exchange\n\n\n# --------------------------------------------------------------------------- #\n#  Result container \u2014 gives your UI a single, predictable shape to render\n# --------------------------------------------------------------------------- #\n@dataclass\nclass OrderResult:\n    ok: bool\n    action: str                         # \"open_short\" | \"close_short\" | \"error\"\n    symbol: str = \"\"\n    side: str = \"\"\n    amount: float = 0.0\n    entry_price: Optional[float] = None\n    leverage: int = 1\n    tp_order_id: Optional[str] = None\n    sl_order_id: Optional[str] = None\n    raw: Dict[str, Any] = field(default_factory=dict)\n    message: str = \"\"\n\n    def as_dict(self) -> Dict[str, Any]:\n        \"\"\"Convenient for sending straight to a JSON/terminal front-end.\"\"\"\n        d = self.__dict__.copy()\n        # raw exchange payloads can be huge; keep only the order id for the UI\n        d[\"raw\"] = {\"id\": self.raw.get(\"id\")} if isinstance(self.raw, dict) else {}\n        return d\n\n\n# --------------------------------------------------------------------------- #\n#  Helpers\n# --------------------------------------------------------------------------- #\ndef _mark_price(exchange: ccxt.binance, symbol: str) -> float:\n    \"\"\"Current market (last) price for sizing TP/SL relative offsets.\"\"\"\n    ticker = exchange.fetch_ticker(symbol)\n    return float(ticker[\"last\"])\n\n\ndef _set_leverage(exchange: ccxt.binance, symbol: str, leverage: int) -> None:\n    \"\"\"\n    Set leverage for the symbol. Wrapped in try/except because some account\n    modes reject the call when a position is already open; that is non-fatal.\n    \"\"\"\n    try:\n        exchange.set_leverage(leverage, symbol)\n    except Exception as e:  # noqa: BLE001 - we intentionally swallow & report\n        print(f\"[warn] could not set leverage to {leverage}x: {e}\")\n\n\n# --------------------------------------------------------------------------- #\n#  1) OPEN SHORT\n# --------------------------------------------------------------------------- #\ndef open_short_position(\n    symbol: str = \"BTC/USDT\",\n    amount: float = 0.001,\n    leverage: int = 1,                  # SAFE DEFAULT: no amplification\n    take_profit: Optional[float] = None,\n    stop_loss: Optional[float] = None,\n    tp_pct: Optional[float] = None,     # alt: TP as % below entry, e.g. 2.0\n    sl_pct: Optional[float] = None,     # alt: SL as % above entry, e.g. 1.0\n    testnet: bool = True,               # SAFE DEFAULT: paper trading\n    exchange: Optional[ccxt.binance] = None,\n) -> OrderResult:\n    \"\"\"\n    Open a SHORT position (sell to open) on Binance USDT-M Futures, then place\n    protective Take-Profit and Stop-Loss orders.\n\n    A short profits when price FALLS: you sell high now and buy back lower later.\n    Risk is asymmetric \u2014 if price rises, losses grow and you can be liquidated.\n\n    Args:\n        symbol:       e.g. \"BTC/USDT\".\n        amount:       position size in BTC (base asset).\n        leverage:     integer multiplier. Default 1 (safest). Raise deliberately.\n        take_profit:  absolute price to take profit (below entry for a short).\n        stop_loss:    absolute price to stop out  (above entry for a short).\n        tp_pct/sl_pct: convenience \u2014 set TP/SL as a percentage from entry instead\n                       of an absolute price. Ignored if absolute price is given.\n        testnet:      paper trading when True (default).\n        exchange:     reuse an existing client, or one is built for you.\n\n    Returns:\n        OrderResult describing what happened (ok flag, ids, entry price, message).\n    \"\"\"\n    try:\n        ex = exchange or build_exchange(testnet=testnet)\n        _set_leverage(ex, symbol, leverage)\n\n        # --- 1. Market SELL to open the short ---------------------------------\n        # reduceOnly is False here: this opens/increases a position.\n        order = ex.create_order(\n            symbol=symbol,\n            type=\"market\",\n            side=\"sell\",\n            amount=amount,\n        )\n\n        # Determine the fill/entry price for TP/SL math.\n        entry = order.get(\"average\") or order.get(\"price\") or _mark_price(ex, symbol)\n        entry = float(entry)\n\n        # --- 2. Resolve TP / SL from either absolute price or percentage ------\n        # For a SHORT:  take-profit is BELOW entry, stop-loss is ABOVE entry.\n        if take_profit is None and tp_pct is not None:\n            take_profit = entry * (1 - tp_pct / 100.0)\n        if stop_loss is None and sl_pct is not None:\n            stop_loss = entry * (1 + sl_pct / 100.0)\n\n        tp_id = sl_id = None\n\n        # --- 3. Take-Profit order (BUY to close when price drops to TP) -------\n        if take_profit is not None:\n            tp = ex.create_order(\n                symbol=symbol,\n                type=\"TAKE_PROFIT_MARKET\",\n                side=\"buy\",\n                amount=amount,\n                params={\n                    \"stopPrice\": ex.price_to_precision(symbol, take_profit),\n                    \"reduceOnly\": True,     # can only close, never open\n                },\n            )\n            tp_id = tp.get(\"id\")\n\n        # --- 4. Stop-Loss order (BUY to close if price rises to SL) -----------\n        if stop_loss is not None:\n            sl = ex.create_order(\n                symbol=symbol,\n                type=\"STOP_MARKET\",\n                side=\"buy\",\n                amount=amount,\n                params={\n                    \"stopPrice\": ex.price_to_precision(symbol, stop_loss),\n                    \"reduceOnly\": True,\n                },\n            )\n            sl_id = sl.get(\"id\")\n\n        return OrderResult(\n            ok=True,\n            action=\"open_short\",\n            symbol=symbol,\n            side=\"sell\",\n            amount=amount,\n            entry_price=entry,\n            leverage=leverage,\n            tp_order_id=tp_id,\n            sl_order_id=sl_id,\n            raw=order,\n            message=(\n                f\"SHORT opened: {amount} {symbol} @ ~{entry:.2f} \"\n                f\"(lev {leverage}x){' | TP ' + format(take_profit, '.2f') if take_profit else ''}\"\n                f\"{' | SL ' + format(stop_loss, '.2f') if stop_loss else ''}\"\n                f\"{'  [TESTNET]' if testnet else ''}\"\n            ),\n        )\n\n    except ccxt.InsufficientFunds as e:\n        return OrderResult(ok=False, action=\"error\", symbol=symbol,\n                           message=f\"Insufficient margin: {e}\")\n    except ccxt.BaseError as e:\n        return OrderResult(ok=False, action=\"error\", symbol=symbol,\n                           message=f\"Exchange error: {e}\")\n    except Exception as e:  # noqa: BLE001\n        return OrderResult(ok=False, action=\"error\", symbol=symbol,\n                           message=f\"Unexpected error: {e}\")\n\n\n# --------------------------------------------------------------------------- #\n#  2) CLOSE SHORT\n# --------------------------------------------------------------------------- #\ndef close_short_position(\n    symbol: str = \"BTC/USDT\",\n    amount: float = 0.001,\n    cancel_protective: bool = True,\n    testnet: bool = True,\n    exchange: Optional[ccxt.binance] = None,\n) -> OrderResult:\n    \"\"\"\n    Close (buy back) an open short and realise the P/L.\n\n    Args:\n        symbol:            e.g. \"BTC/USDT\".\n        amount:            size in BTC to buy back (usually the open size).\n        cancel_protective: if True, cancel any leftover TP/SL orders on this\n                           symbol so they don't fire on a future position.\n        testnet:           paper trading when True (default).\n        exchange:          reuse a client or one is built.\n\n    Returns:\n        OrderResult with the closing fill price and a human-readable message.\n    \"\"\"\n    try:\n        ex = exchange or build_exchange(testnet=testnet)\n\n        # Market BUY with reduceOnly: this can ONLY reduce/close the short,\n        # it can never accidentally open a long.\n        order = ex.create_order(\n            symbol=symbol,\n            type=\"market\",\n            side=\"buy\",\n            amount=amount,\n            params={\"reduceOnly\": True},\n        )\n\n        if cancel_protective:\n            # Tidy up: remove any resting TP/SL so they don't trigger later.\n            try:\n                ex.cancel_all_orders(symbol)\n            except Exception as e:  # noqa: BLE001\n                print(f\"[warn] could not cancel residual orders: {e}\")\n\n        exit_price = order.get(\"average\") or order.get(\"price\") or _mark_price(ex, symbol)\n        exit_price = float(exit_price)\n\n        return OrderResult(\n            ok=True,\n            action=\"close_short\",\n            symbol=symbol,\n            side=\"buy\",\n            amount=amount,\n            entry_price=exit_price,        # here, the exit fill\n            raw=order,\n            message=f\"SHORT closed: bought back {amount} {symbol} @ ~{exit_price:.2f}\"\n                    f\"{'  [TESTNET]' if testnet else ''}\",\n        )\n\n    except ccxt.BaseError as e:\n        return OrderResult(ok=False, action=\"error\", symbol=symbol,\n                           message=f\"Exchange error: {e}\")\n    except Exception as e:  # noqa: BLE001\n        return OrderResult(ok=False, action=\"error\", symbol=symbol,\n                           message=f\"Unexpected error: {e}\")\n\n\n# --------------------------------------------------------------------------- #\n#  3) POSITION + ORDER STATE (for your terminal UI to poll)\n# --------------------------------------------------------------------------- #\ndef get_short_status(\n    symbol: str = \"BTC/USDT\",\n    testnet: bool = True,\n    exchange: Optional[ccxt.binance] = None,\n) -> Dict[str, Any]:\n    \"\"\"\n    Snapshot the current position and any open protective orders, shaped for a\n    UI. Poll this (e.g. every few seconds) to drive your order-state display.\n\n    Returns a dict like:\n        {\n          \"has_position\": True,\n          \"side\": \"short\",\n          \"size\": 0.001,\n          \"entry_price\": 71000.0,\n          \"mark_price\": 70400.0,\n          \"unrealized_pnl\": 0.6,\n          \"liquidation_price\": 78500.0,\n          \"open_orders\": [{\"id\":..., \"type\":\"STOP_MARKET\", \"stopPrice\":...}, ...]\n        }\n    \"\"\"\n    try:\n        ex = exchange or build_exchange(testnet=testnet)\n\n        position = None\n        for p in ex.fetch_positions([symbol]):\n            contracts = float(p.get(\"contracts\") or 0)\n            if contracts != 0:\n                position = p\n                break\n\n        open_orders = ex.fetch_open_orders(symbol)\n        slim_orders = [\n            {\n                \"id\": o.get(\"id\"),\n                \"type\": o.get(\"type\"),\n                \"side\": o.get(\"side\"),\n                \"stopPrice\": (o.get(\"info\", {}) or {}).get(\"stopPrice\"),\n                \"reduceOnly\": (o.get(\"info\", {}) or {}).get(\"reduceOnly\"),\n            }\n            for o in open_orders\n        ]\n\n        if position is None:\n            return {\"has_position\": False, \"open_orders\": slim_orders}\n\n        return {\n            \"has_position\": True,\n            \"side\": \"short\" if float(position.get(\"contracts\", 0)) and\n                    position.get(\"side\") == \"short\" else position.get(\"side\"),\n            \"size\": abs(float(position.get(\"contracts\") or 0)),\n            \"entry_price\": float(position.get(\"entryPrice\") or 0),\n            \"mark_price\": float(position.get(\"markPrice\") or 0),\n            \"unrealized_pnl\": float(position.get(\"unrealizedPnl\") or 0),\n            \"liquidation_price\": position.get(\"liquidationPrice\"),\n            \"leverage\": position.get(\"leverage\"),\n            \"open_orders\": slim_orders,\n        }\n\n    except Exception as e:  # noqa: BLE001\n        return {\"error\": str(e), \"has_position\": False, \"open_orders\": []}\n\n\n# --------------------------------------------------------------------------- #\n#  Demo / smoke test (safe: testnet, leverage 1, tiny size)\n# --------------------------------------------------------------------------- #\nif __name__ == \"__main__\":\n    print(\"Running a SAFE demo on the Binance Futures TESTNET (no real money).\")\n    print(\"Set BINANCE_API_KEY / BINANCE_API_SECRET to *testnet* keys first.\\n\")\n\n    SYMBOL = \"BTC/USDT\"\n    SIZE = 0.001\n\n    # Open a short with protective TP 2% below and SL 1% above entry.\n    opened = open_short_position(\n        symbol=SYMBOL,\n        amount=SIZE,\n        leverage=1,\n        tp_pct=2.0,\n        sl_pct=1.0,\n        testnet=True,\n    )\n    print(opened.message if opened.ok else f\"OPEN FAILED: {opened.message}\")\n\n    if opened.ok:\n        time.sleep(2)\n        print(get_short_status(SYMBOL, testnet=True))\n\n        # Close it again to realise P/L and clean up TP/SL.\n        closed = close_short_position(SYMBOL, amount=SIZE, testnet=True)\n        print(closed.message if closed.ok else f\"CLOSE FAILED: {closed.message}\")\n";
 $('#stCode').textContent=PYCODE;
 $('#stCopy').addEventListener('click',()=>{navigator.clipboard&&navigator.clipboard.writeText(PYCODE);$('#stCopy').textContent='✓ Copied';setTimeout(()=>$('#stCopy').textContent='⧉ Copy Python code',1500);});
@@ -2302,7 +2660,7 @@ async function fetchTick(){const sym=activeSym;const srcs=[
   {u:'https://www.okx.com/api/v5/market/ticker?instId='+sym+'-USDT',p:j=>(j&&j.data&&j.data[0])?+j.data[0].last:null,n:'OKX'},
   {u:'https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name='+sym+'_USDT',p:j=>(j&&j.result&&j.result.data&&j.result.data[0])?+(j.result.data[0].a||j.result.data[0].k):null,n:'Crypto.com'}];
   for(const sc of srcs){try{const r=await fetch(sc.u,{cache:'no-store'});if(!r.ok)continue;const jj=await r.json();const p=sc.p(jj);if(p&&isFinite(p))return {price:p,src:sc.n};}catch(e){}}return null;}
-async function priceTick(){if(!state.live||priceBusy||wsConnected)return;priceBusy=true;try{const t=await fetchTick();if(t&&t.price){const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=t.price;if(t.price>last.high)last.high=t.price;if(t.price<last.low)last.low=t.price;}if(analysis)analysis.price=t.price;lastPriceTs=Date.now();lastPriceSrc=t.src;updateHeader();if(typeof demoTick==='function')demoTick();if(typeof checkLineAlerts==='function')checkLineAlerts();}}catch(e){}priceBusy=false;updateLiveStat();}
+async function priceTick(){if(!state.live||priceBusy||wsConnected)return;priceBusy=true;try{const t=await fetchTick();if(t&&t.price){const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=t.price;if(t.price>last.high)last.high=t.price;if(t.price<last.low)last.low=t.price;}if(analysis)analysis.price=t.price;lastPriceTs=Date.now();lastPriceSrc=t.src;updateHeader();if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof checkLineAlerts==='function')checkLineAlerts();}}catch(e){}priceBusy=false;updateLiveStat();}
 function updateLiveStat(){const el=$('#liveStat');if(!el)return;if(!state.live){el.innerHTML='<span style="color:var(--dim)">offline \u2014 host on https for live price</span>';return;}if(!lastPriceTs){el.innerHTML='<span style="color:var(--gold)">\u25CF</span> connecting\u2026';return;}const ago=Math.round((Date.now()-lastPriceTs)/1000);const fresh=ago<40;el.innerHTML='<span style="color:'+(fresh?'var(--green)':'var(--red)')+'">\u25CF</span> '+(fresh?'live':'stale')+' \u00b7 '+(ago<2?'just now':ago+'s ago')+' \u00b7 '+lastPriceSrc;}
 setInterval(priceTick,5000);setInterval(updateLiveStat,1000);setTimeout(priceTick,1500);
 /* ---- real-time WebSocket price stream (Binance) with poll fallback ---- */
@@ -2311,7 +2669,7 @@ function stopWS(){try{if(priceWS){priceWS.onopen=priceWS.onmessage=priceWS.onerr
 function startWS(){if(!state.live)return;if(typeof WebSocket==='undefined')return;stopWS();const sym=activeSym;wsSym=sym;
   try{priceWS=new WebSocket('wss://stream.binance.com:9443/ws/'+sym.toLowerCase()+'usdt@trade');
     priceWS.onopen=function(){wsConnected=true;};
-    priceWS.onmessage=function(ev){try{const m=JSON.parse(ev.data);const p=+m.p;if(!p||!isFinite(p))return;wsConnected=true;lastPriceTs=Date.now();lastPriceSrc='Binance \u00b7 stream';const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=p;if(p>last.high)last.high=p;if(p<last.low)last.low=p;}if(analysis)analysis.price=p;const el=$('#price');if(el)el.textContent='$'+fmt(p,p<1?6:2);const now=Date.now();if(now-demoThrottle>=1000){demoThrottle=now;if(typeof demoTick==='function')demoTick();if(typeof checkLineAlerts==='function')checkLineAlerts();updateLiveStat();}}catch(e){}};
+    priceWS.onmessage=function(ev){try{const m=JSON.parse(ev.data);const p=+m.p;if(!p||!isFinite(p))return;wsConnected=true;lastPriceTs=Date.now();lastPriceSrc='Binance \u00b7 stream';const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=p;if(p>last.high)last.high=p;if(p<last.low)last.low=p;}if(analysis)analysis.price=p;const el=$('#price');if(el)el.textContent='$'+fmt(p,p<1?6:2);const now=Date.now();if(now-demoThrottle>=1000){demoThrottle=now;if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof checkLineAlerts==='function')checkLineAlerts();updateLiveStat();}}catch(e){}};
     priceWS.onerror=function(){wsConnected=false;};
     priceWS.onclose=function(){wsConnected=false;};
   }catch(e){wsConnected=false;}}
@@ -2815,7 +3173,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();drawInit();bdInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();afInit();drawInit();bdInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
