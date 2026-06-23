@@ -1072,6 +1072,9 @@
   .af-btn{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
   .af-btn:hover{border-color:var(--gold)}
   #afToggle.on{background:rgba(34,199,132,.16);border-color:var(--green);color:var(--green)}
+  #afWake.on{background:rgba(240,185,11,.16);border-color:var(--gold);color:var(--gold)}
+  .af-livewrap{display:flex;align-items:center;margin:8px 0 2px;font-size:11px}
+  .af-live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px}
   .af-state{margin-left:auto;font-family:var(--disp);font-weight:700;font-size:13px}
   .af-tf{font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase}
   .af-statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
@@ -1112,6 +1115,7 @@
       <button class="af-btn" id="afResetBtn">Reset</button>
       <button class="af-btn" id="afExport">Export</button>
       <button class="af-btn" id="afImport">Import</button>
+      <button class="af-btn" id="afWake">Keep screen awake: off</button>
       <input type="file" id="afFile" accept="application/json" style="display:none">
       <span class="af-state" id="afState">STOPPED</span>
     </div>
@@ -1124,6 +1128,7 @@
       </span>
     </div>
     <div class="af-tf">Running on: <span id="afTf">&mdash;</span> &middot; risk 1%/trade (1R) &middot; target +2R &middot; 1-hour life</div>
+    <div class="af-livewrap"><span id="afLive"></span></div>
 
     <div class="af-statgrid" id="afStats"></div>
     <div class="af-note" id="afExpNote"></div>
@@ -2206,9 +2211,11 @@ const AF_RSI_L_LO=50, AF_RSI_L_HI=70;  // long rsi window
 const AF_RSI_S_LO=30, AF_RSI_S_HI=50;  // short rsi window (mirror)
 const AF_ATR_BARS=70;            // ATR percentile lookback
 const AF_ATR_PCTL=0.50;          // current ATR must sit >= 50th pctile
+const AF_BEAT_GAP=90000;         // >90s between ticks = was asleep/closed
 
 let af={on:false,mode:'long',balance:AF_START,start:AF_START,pos:null,history:[],
-        dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[]};
+        dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[],
+        lastBeat:0,upMs:0,downMs:0,wokeGap:0};
 
 function afLoad(){try{const r=localStorage.getItem(AF_KEY);if(r){const d=JSON.parse(r);
   if(d&&typeof d.balance==='number'){af=d;
@@ -2217,11 +2224,41 @@ function afLoad(){try{const r=localStorage.getItem(AF_KEY);if(r){const d=JSON.pa
     if(typeof af.start!=='number')af.start=AF_START;
     if(typeof af.maxEq!=='number')af.maxEq=af.start;
     if(typeof af.maxDD!=='number')af.maxDD=0;
+    if(typeof af.upMs!=='number')af.upMs=0;
+    if(typeof af.downMs!=='number')af.downMs=0;
+    if(typeof af.lastBeat!=='number')af.lastBeat=0;
+    if(typeof af.wokeGap!=='number')af.wokeGap=0;
     if(af.mode!=='long'&&af.mode!=='short'&&af.mode!=='both')af.mode='long';
     if(af.pos===undefined)af.pos=null;}}}catch(e){}}
 function afSave(){try{localStorage.setItem(AF_KEY,JSON.stringify(af));}catch(e){}}
 function afLog(msg,kind){af.feed.unshift({t:Date.now(),m:msg,k:kind||'info'});
   if(af.feed.length>40)af.feed.length=40;afSave();}
+
+function afDur(ms){ms=Math.max(0,ms||0);const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);if(h>0)return h+'h '+m+'m';if(m>0)return m+'m';return s+'s';}
+function afNotify(title,body){try{if(typeof Notification!=='undefined'&&Notification.permission==='granted')new Notification(title,{body:body});}catch(e){}}
+/* Heartbeat: accumulates "alive & on" time vs detected sleep gaps for honest coverage */
+function afHeartbeat(){
+  if(!af.on)return;
+  const now=Date.now();
+  if(af.lastBeat){const gap=now-af.lastBeat;
+    if(gap<=AF_BEAT_GAP){af.upMs+=gap;}
+    else{af.downMs+=gap;af.wokeGap=gap;
+      afLog('▶ Wapas live — agent takreeban '+afDur(gap)+' band raha (us dauran observe/exit miss ho sakta hai).','warn');
+      afNotify('Alfajar wapas live','Agent ~'+afDur(gap)+' band raha tha. Ab dobara chal raha hai.');}
+  }
+  af.lastBeat=now;af.saveBeat=(af.saveBeat||0)+1;if(af.saveBeat>=4){af.saveBeat=0;afSave();}
+}
+/* Wake Lock — keep screen awake while terminal open (best-effort, esp. mobile) */
+let afWakeLock=null,afWakeOn=false;
+function afRenderWakeBtn(){const b=$('#afWake');if(!b)return;b.textContent='Keep screen awake: '+(afWakeOn?'ON':'off');b.classList.toggle('on',afWakeOn);}
+async function afReacquireWake(){if(!afWakeOn||typeof navigator==='undefined'||!('wakeLock'in navigator))return;try{afWakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+async function afToggleWake(){
+  if(typeof navigator==='undefined'||!('wakeLock'in navigator)){afLog('Is browser/device mein screen-wake support nahi.','warn');return;}
+  afWakeOn=!afWakeOn;
+  if(afWakeOn){await afReacquireWake();afLog('Screen-awake ON — terminal khula rahega to screen nahi soyegi.','info');}
+  else{if(afWakeLock){try{await afWakeLock.release();}catch(e){}afWakeLock=null;}afLog('Screen-awake off.','info');}
+  afRenderWakeBtn();
+}
 
 function afPrice(){return (analysis&&analysis.price)?analysis.price:null;}
 function afGross(pos,price){return (pos.dir==='long'?1:-1)*(price-pos.entry)*pos.size;}
@@ -2381,6 +2418,16 @@ function afRender(){
   ['long','short','both'].forEach(m=>{const b=$('#afMode-'+m);if(b)b.classList.toggle('on',af.mode===m);});
   // toggle
   const tg=$('#afToggle');if(tg){tg.textContent=af.on?'⏸ Pause agent':'▶ Start agent';tg.classList.toggle('on',af.on);}
+  // live / coverage pill — honest "kitna waqt cover hua" indicator
+  const lv=$('#afLive');
+  if(lv){const tot=(af.upMs||0)+(af.downMs||0);const cov=tot>0?(af.upMs/tot*100):0;
+    const last=af.lastBeat?(Date.now()-af.lastBeat):0;
+    const live=af.on&&(typeof document==='undefined'||!document.hidden)&&last<=AF_BEAT_GAP;
+    if(!af.on){lv.innerHTML='<span class="af-live-dot" style="background:var(--dim)"></span><span style="color:var(--dim)">agent stopped</span>';}
+    else{lv.innerHTML='<span class="af-live-dot" style="background:'+(live?'var(--green)':'var(--gold)')+'"></span>'+
+      '<span style="color:'+(live?'var(--green)':'var(--gold)')+'">'+(live?'LIVE':'idle/asleep')+'</span>'+
+      '<span style="color:var(--dim)"> · coverage '+fmt(cov,0)+'% ('+afDur(af.upMs)+' on / '+afDur(af.downMs)+' off)'+(af.wokeGap>AF_BEAT_GAP?(' · last gap '+afDur(af.wokeGap)):'')+'</span>';}
+  }
   // state line
   const stt=$('#afState');
   if(stt){let s,col;
@@ -2441,13 +2488,13 @@ function afRender(){
       return '<div class="af-feed-row"><span class="af-feed-t">'+tm+'</span><span style="color:'+col+'">'+e.m+'</span></div>';}).join('');}
 }
 
-function afTick(){if(typeof af==='undefined'||!af)return;afRolloverDay();if(af.pos)afManage();else if(af.on&&!af.paused)afEvaluateEntry();afRender();}
+function afTick(){if(typeof af==='undefined'||!af)return;afRolloverDay();afHeartbeat();if(af.pos)afManage();else if(af.on&&!af.paused)afEvaluateEntry();afRender();}
 
 function afSetMode(m){if(m!=='long'&&m!=='short'&&m!=='both')return;af.mode=m;afLog('Mode set: '+(m==='long'?'long-only':m==='short'?'short-only':'long + short')+'.','info');afSave();afRender();}
-function afToggle(){af.on=!af.on;afLog(af.on?'▶ Agent started — armed ('+af.mode+') on '+(typeof state!=='undefined'?state.tf:'?')+'.':'⏸ Agent paused by user.','info');afSave();afRender();}
+function afToggle(){af.on=!af.on;if(af.on)af.lastBeat=Date.now();afLog(af.on?'▶ Agent started — armed ('+af.mode+') on '+(typeof state!=='undefined'?state.tf:'?')+'.':'⏸ Agent paused by user.','info');afSave();afRender();}
 function afReset(){if(typeof confirm==='function'&&!confirm('Reset Alfajar paper account to $'+fmt(AF_START,0)+'? Clears its position, history and log.'))return;
   const keepMode=af.mode;
-  af={on:false,mode:keepMode,balance:AF_START,start:AF_START,pos:null,history:[],dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[]};
+  af={on:false,mode:keepMode,balance:AF_START,start:AF_START,pos:null,history:[],dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:AF_START,maxDD:0,feed:[],lastBeat:0,upMs:0,downMs:0,wokeGap:0};
   afLog('Account reset to $'+fmt(AF_START,0)+'.','info');afSave();afRender();}
 
 function afInit(){
@@ -2458,6 +2505,15 @@ function afInit(){
   const ex=$('#afExport');if(ex)ex.addEventListener('click',()=>{const blob=new Blob([JSON.stringify(af,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='alfajar-account.json';a.click();});
   const im=$('#afImport');if(im)im.addEventListener('click',()=>$('#afFile').click());
   const fl=$('#afFile');if(fl)fl.addEventListener('change',e=>{const file=e.target.files[0];if(!file)return;const rd=new FileReader();rd.onload=()=>{try{const d=JSON.parse(rd.result);if(d&&typeof d.balance==='number'){af=d;af.history=af.history||[];af.feed=af.feed||[];if(af.mode!=='long'&&af.mode!=='short'&&af.mode!=='both')af.mode='long';afSave();afRender();afLog('✓ Account imported.','info');}}catch(err){afLog('⚠ File read nahi hui.','warn');}};rd.readAsText(file);});
+  const wk=$('#afWake');if(wk)wk.addEventListener('click',afToggleWake);afRenderWakeBtn();
+  if(typeof document!=='undefined'&&document.addEventListener){
+    document.addEventListener('visibilitychange',function(){
+      if(document.hidden){ if(af.on)afNotify('Alfajar background mein','Tab background/lock ho gaya — agent ruk sakta hai. Wapas kholain taake chalta rahe.'); }
+      else { afReacquireWake(); if(af.on){af.lastBeat=Date.now();} afRender(); }
+    });
+  }
+  // keep the LIVE pill / countdown fresh even between price ticks
+  if(typeof setInterval!=='undefined')setInterval(function(){if(af&&(af.on||af.pos))afRender();},1000);
   afRender();
 }
 
