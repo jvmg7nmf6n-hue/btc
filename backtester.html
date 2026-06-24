@@ -1,0 +1,547 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alfajar Backtester — research sandbox</title>
+<style>
+:root{--bg:#0b0e11;--panel:#161a1e;--panel-2:#1e2329;--line:#2b3139;--txt:#eaecef;--muted:#b7bdc6;--dim:#848e9c;--gold:#f0b90b;--green:#22c784;--red:#f6465d;--mono:ui-monospace,Menlo,Consolas,monospace;--disp:'Segoe UI',system-ui,sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--disp);font-size:14px;line-height:1.5;padding:18px;max-width:960px;margin:0 auto}
+h1{font-size:18px;margin:0 0 2px}
+.sub{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px}
+.note{font-size:12px;color:var(--muted);line-height:1.65;margin:0 0 12px}
+.note b{color:var(--txt)}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.lbl{font-size:10px;color:var(--dim);letter-spacing:.1em;text-transform:uppercase;margin-right:4px}
+input.sym{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font-size:13px;font-family:var(--mono);width:90px;text-transform:uppercase}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--dim);padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+.seg button.on{background:rgba(240,185,11,.16);color:var(--gold)}
+.btn{background:var(--panel-2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+.btn:hover{border-color:var(--gold)}
+.btn.go{background:rgba(240,185,11,.16);border-color:var(--gold);color:var(--gold)}
+.bt-bar{height:6px;background:var(--panel-2);border-radius:4px;overflow:hidden;margin:8px 0 5px}
+.bt-bar span{display:block;height:100%;background:var(--gold);transition:width .2s}
+.bt-msg{font-size:12px;color:var(--muted)}
+.af-bt-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.af-bt-table th{text-align:left;color:var(--dim);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:6px 8px;border-bottom:1px solid var(--line)}
+.af-bt-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:11px}
+.af-bt-table td:first-child{font-family:inherit}
+.bt-meta{font-size:10px;color:var(--dim);margin-bottom:6px}
+.bt-note{font-size:12px;color:var(--muted);line-height:1.65;margin-top:14px;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+
+.params{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.pin{display:flex;flex-direction:column;gap:3px}
+.pin span{font-size:9px;color:var(--dim);letter-spacing:.04em;text-transform:uppercase}
+.pin input{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:6px;padding:6px 8px;font-size:12px;font-family:var(--mono)}
+.bt-sub{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin:14px 0 6px}
+.bt-chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;margin:6px 0}
+.bt-chip{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.bt-chip .k{font-size:9px;color:var(--dim);letter-spacing:.06em;text-transform:uppercase;margin-bottom:3px}
+.bt-chip .v{font-family:var(--mono);font-weight:700;font-size:14px}
+
+</style></head><body>
+<h1>Alfajar Backtester <span style="font-size:11px;color:var(--gold)">research sandbox</span></h1>
+<div class="sub">Standalone &middot; 6-month historical &middot; built to see every angle &amp; dodge traps</div>
+
+<div class="card">
+  <div class="note">Alfajar se <b>bilkul alag</b> tool. Wahi 7 filters aur wahi indicator formulas jo asli terminal mein hain. Yeh sirf "kitne %" nahi dikhata &mdash; yeh <b>overfit, luck aur market-drift</b> ke traps bhi pakadta hai: out-of-sample split, random-entry baseline, bootstrap confidence interval, distribution, equity curve. <b>15m</b> recommended. Risk-score funding ke baghair (historical funding nahi).</div>
+  <div class="row">
+    <span class="lbl">Symbol</span><input class="sym" id="btSym" value="BTC"> <span style="color:var(--dim);font-size:12px">USDT</span>
+    <span class="lbl" style="margin-left:8px">TF</span>
+    <span class="seg" id="btTfSeg"><button data-tf="15m">15m</button><button data-tf="1h">1h</button><button data-tf="4h">4h</button><button data-tf="1d">1D</button></span>
+    <span class="lbl" style="margin-left:8px">Direction</span>
+    <span class="seg"><button id="afBtDir-long">Long</button><button id="afBtDir-short">Short</button><button id="afBtDir-both">Both</button></span>
+  </div>
+
+  <div class="params">
+    <div class="bt-sub" style="margin:0 0 8px">Parameters — tweak karo, phir Run (defaults = agreed spec)</div>
+    <div class="pgrid">
+      <label class="pin"><span>SL × ATR</span><input id="pSlAtr" value="1.0"></label>
+      <label class="pin"><span>R:R (TP)</span><input id="pRr" value="2.0"></label>
+      <label class="pin"><span>Hold (hrs)</span><input id="pHold" value="1"></label>
+      <label class="pin"><span>Fee %/side</span><input id="pFee" value="0.05"></label>
+      <label class="pin"><span>Min profit $</span><input id="pMinP" value="10"></label>
+      <label class="pin"><span>Confluence ≥</span><input id="pConf" value="4"></label>
+      <label class="pin"><span>Opportunity ≥</span><input id="pOpp" value="80"></label>
+      <label class="pin"><span>Risk ≤</span><input id="pRisk" value="15"></label>
+      <label class="pin"><span>ATR pctile ≥</span><input id="pAtrPctl" value="50"></label>
+      <label class="pin"><span>RSI long lo</span><input id="pRsiLlo" value="50"></label>
+      <label class="pin"><span>RSI long hi</span><input id="pRsiLhi" value="70"></label>
+      <label class="pin"><span>RSI short lo</span><input id="pRsiSlo" value="30"></label>
+      <label class="pin"><span>RSI short hi</span><input id="pRsiShi" value="50"></label>
+    </div>
+  </div>
+  <div class="row"><button class="btn go" id="afBtRun">&#9654; Run 6-month backtest</button></div>
+  <div id="afBtProg"></div>
+  <div id="afBtResults"></div>
+</div>
+
+<script>
+const fmt=(n,d=2)=>n==null||isNaN(n)?'\u2014':n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const COL={green:'#22c784',red:'#f6465d',muted:'#848e9c'};
+let liveFutures=null;
+let analysis=null, mtfData={}, activeSym='BTC';
+let state={tf:'15m',candles:[]};
+const $=(s)=>document.querySelector(s);
+
+function sma(v,p){const o=[];for(let i=0;i<v.length;i++){if(i<p-1){o.push(null);continue;}let s=0;for(let j=0;j<p;j++)s+=v[i-j];o.push(s/p);}return o;}
+function ema(v,p){const o=[];const k=2/(p+1);let prev;for(let i=0;i<v.length;i++){const x=v[i];if(x==null){o.push(null);continue;}prev=prev==null?x:x*k+prev*(1-k);o.push(prev);}return o;}
+function stdev(v,p){const o=[];for(let i=0;i<v.length;i++){if(i<p-1){o.push(null);continue;}let m=0;for(let j=0;j<p;j++)m+=v[i-j];m/=p;let s=0;for(let j=0;j<p;j++)s+=(v[i-j]-m)**2;o.push(Math.sqrt(s/p));}return o;}
+function rsiCalc(v,p=14){const o=new Array(v.length).fill(null);if(v.length<=p)return o;let g=0,l=0;for(let i=1;i<=p;i++){const d=v[i]-v[i-1];g+=Math.max(d,0);l+=Math.max(-d,0);}g/=p;l/=p;o[p]=100-100/(1+(l===0?100:g/l));for(let i=p+1;i<v.length;i++){const d=v[i]-v[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;o[i]=100-100/(1+(l===0?100:g/l));}return o;}
+function macdCalc(v){const f=ema(v,12),s=ema(v,26);const line=v.map((_,i)=>f[i]!=null&&s[i]!=null?f[i]-s[i]:null);const sig=ema(line.map(x=>x==null?null:x),9);const hist=line.map((x,i)=>x!=null&&sig[i]!=null?x-sig[i]:null);return{line,sig,hist};}
+function levels(c){const hi=Math.max(...c.map(x=>x.high)),lo=Math.min(...c.map(x=>x.low)),r=hi-lo||1;return{hi,lo,fib:{'0.0':hi,'0.236':hi-r*.236,'0.382':hi-r*.382,'0.5':hi-r*.5,'0.618':hi-r*.618,'0.786':hi-r*.786,'1.0':lo}};}
+function tfTrend(closes){
+  if(!closes||closes.length<26)return null;
+  const ma7=sma(closes,7),ma25=sma(closes,25),L=closes.length-1;
+  if(ma7[L]==null||ma25[L]==null)return null;
+  const above=ma7[L]>ma25[L],pAbove=closes[L]>ma25[L];
+  if(above&&pAbove)return 'BULL';if(!above&&!pAbove)return 'BEAR';return 'MIXED';
+}
+function analyze(c){
+  const closes=c.map(x=>x.close);const rsiV=rsiCalc(closes);const mac=macdCalc(closes);const lev=levels(c);
+  const L=closes.length-1;const ma7=sma(closes,7),ma25=sma(closes,25),ma99=sma(closes,99);
+  const sigs=[];let score=0;
+  const cr=ma7[L]>ma25[L];score+=cr?1:-1;sigs.push({n:'MA Cross 7/25',d:cr?'fast above slow':'fast below slow',t:cr?'buy':'sell'});
+  const tr=ma99[L]!=null?closes[L]>ma99[L]:closes[L]>closes[0];score+=tr?1:-1;sigs.push({n:'Trend vs MA99',d:tr?'price above long MA':'price below long MA',t:tr?'buy':'sell'});
+  const r=rsiV[L];let rt='neutral';if(r>70){rt='sell';score-=1;}else if(r<30){rt='buy';score+=1;}else if(r>55)score+=.5;else if(r<45)score-=.5;
+  sigs.push({n:'RSI (14)',d:fmt(r,1)+' · '+(r>70?'overbought':r<30?'oversold':'neutral'),t:rt});
+  const mu=mac.line[L]>mac.sig[L];score+=mu?1:-1;sigs.push({n:'MACD',d:mu?'line above signal':'line below signal',t:mu?'buy':'sell'});
+  const m=sma(closes,20),sd=stdev(closes,20);const up=m[L]+2*sd[L],lo=m[L]-2*sd[L],p=closes[L];let bt='neutral';if(p>up)bt='sell';else if(p<lo)bt='buy';
+  sigs.push({n:'Bollinger',d:p>up?'above upper band':p<lo?'below lower band':'inside bands',t:bt});
+  let verdict='NEUTRAL',vcol=COL.muted;if(score>=2.5){verdict='BULLISH';vcol=COL.green;}else if(score>=1){verdict='LEAN LONG';vcol=COL.green;}else if(score<=-2.5){verdict='BEARISH';vcol=COL.red;}else if(score<=-1){verdict='LEAN SHORT';vcol=COL.red;}
+  const bullPct=Math.max(3,Math.min(97,50+score*11));
+  let atr=0,mm=Math.min(14,c.length-1);for(let i=c.length-mm;i<c.length;i++)atr+=Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close));atr/=mm;
+  return {closes,rsiV,mac,lev,sigs,score,verdict,vcol,bullPct,atr,price:closes[L],rsiNow:r,ma:{f:ma7[L],s:ma25[L],l:ma99[L]},
+    ma7,ma25,ma99};
+}
+function oppRisk(){
+  const a=analysis; if(!a) return null;
+  const price=a.price, atr=a.atr, rsi=a.rsiNow, score=a.score;
+  const ma99=a.ma.l!=null?a.ma.l:price;
+  const trendUp=price>=ma99, leanLong=score>0;
+  const aligned=(leanLong&&trendUp)||(!leanLong&&!trendUp);
+  const atrPct=price>0?atr/price*100:0;
+  const ext=atr>0?Math.abs(price-ma99)/atr:0;
+  // Opportunity (setup quality 0-100)
+  let opp=0; const oppWhy=[];
+  const conv=Math.min(Math.abs(score)/3,1);
+  opp+=conv*40; oppWhy.push(conv>=0.5?('Signal conviction strong (score '+fmt(score,1)+')'):('Signal conviction weak/mixed (score '+fmt(score,1)+')'));
+  if(aligned){opp+=30; oppWhy.push('Lean trend ke saath aligned hai');} else {oppWhy.push('Lean counter-trend hai (kam-quality setup)');}
+  let room; if(leanLong) room=rsi<70?clamp((70-rsi)/40,0,1):0; else room=rsi>30?clamp((rsi-30)/40,0,1):0;
+  opp+=room*20; oppWhy.push(room>0.5?'RSI mein move ki gunjaish hai':'RSI trade-direction mein thaka hua (kam gunjaish)');
+  opp+=atrPct>0.2?10:5;
+  opp=clamp(Math.round(opp),0,100);
+  // Risk (danger level 0-100)
+  let risk=0; const riskWhy=[];
+  const volR=clamp(atrPct/4,0,1); risk+=volR*35; riskWhy.push('Volatility (ATR) ~'+fmt(atrPct,2)+'% of price'+(volR>0.6?' \u2014 high':''));
+  if(!aligned){risk+=25; riskWhy.push('Counter-trend lean (whipsaw ka khatra)');}
+  if(rsi>=70||rsi<=30){risk+=20; riskWhy.push('RSI extreme ('+fmt(rsi,0)+') \u2014 reversal/chase risk');}
+  if(ext>3){risk+=15; riskWhy.push('Price MA99 se '+fmt(ext,1)+'x ATR door (mean-reversion risk)');}
+  if(liveFutures&&liveFutures.funding!=null&&Math.abs(liveFutures.funding)>=0.0005){risk+=10; riskWhy.push('Funding elevated ('+(liveFutures.funding*100).toFixed(3)+'%) \u2014 crowded positioning');}
+  risk=clamp(Math.round(risk),0,100);
+  return {opp,risk,oppWhy,riskWhy};
+}
+
+let AF_KEY='btc_alfajar';
+let AF_START=10000;            // virtual USDT
+let AF_FEE=0.0005;             // 0.05% taker, PER SIDE (honest fee model)
+let AF_RISK_PCT=1;             // risk 1% of equity per trade = 1R
+let AF_SL_ATR=1.0;             // stop = 1.0 x ATR from entry
+let AF_RR=2.0;                 // target = +2R  (1:2)
+let AF_HOLD_MS=3600000;        // hard life: 1 hour
+let AF_MIN_PROFIT=10;          // $ — time-exit minimum-profit rule
+let AF_DAILY_STOP_R=3;         // pause the day after -3R realized
+let AF_CONF_MIN=4;             // confluence >= 4 / 5
+let AF_OPP_MIN=80;             // opportunity >= 80 / 100
+let AF_RISK_MAX=15;            // risk <= 15 / 100
+let AF_RSI_L_LO=50, AF_RSI_L_HI=70;  // long rsi window
+let AF_RSI_S_LO=30, AF_RSI_S_HI=50;  // short rsi window (mirror)
+let AF_ATR_BARS=70;            // ATR percentile lookback
+let AF_ATR_PCTL=0.50;          // current ATR must sit >= 50th pctile
+let AF_BEAT_GAP=90000;         // >90s between ticks = was asleep/closed
+function afAtrPctile(){
+  const c=(typeof state!=='undefined'&&state.candles)?state.candles:[];
+  if(c.length<AF_ATR_BARS+16)return {ok:false,cur:0,rank:0,enough:false};
+  const tr=[];for(let i=1;i<c.length;i++){tr.push(Math.max(c[i].high-c[i].low,Math.abs(c[i].high-c[i-1].close),Math.abs(c[i].low-c[i-1].close)));}
+  const ap=[];for(let i=13;i<tr.length;i++){let s=0;for(let j=i-13;j<=i;j++)s+=tr[j];const atr=s/14;const close=c[i+1].close;if(close>0)ap.push(atr/close*100);}
+  if(ap.length<AF_ATR_BARS)return {ok:false,cur:0,rank:0,enough:false};
+  const win=ap.slice(-AF_ATR_BARS),cur=win[win.length-1];
+  const rank=win.filter(x=>x<=cur).length/win.length;
+  return {ok:rank>=AF_ATR_PCTL,cur:cur,rank:rank,enough:true};
+}
+function afDirFilters(dir){
+  const a=analysis;const checks=[];let pass=true;
+  const isL=dir==='long';
+  // 1 composite bias
+  const biasOk=isL?(a.verdict==='BULLISH'):(a.verdict==='BEARISH');
+  checks.push({k:'bias',label:'Composite Bias = '+(isL?'Bullish':'Bearish'),ok:biasOk,val:a.verdict});
+  // 2 multi-timeframe all one way
+  const t15=(typeof tfTrend==='function')?tfTrend(mtfData['15m']):null,t1=(typeof tfTrend==='function')?tfTrend(mtfData['1h']):null,t4=(typeof tfTrend==='function')?tfTrend(mtfData['4h']):null;
+  const want=isL?'BULL':'BEAR';
+  const mtfOk=(t15===want&&t1===want&&t4===want);
+  checks.push({k:'mtf',label:'Multi-TF 15m/1h/4h all '+(isL?'Bullish':'Bearish'),ok:mtfOk,val:[t15,t1,t4].map(x=>x?x.toLowerCase():'—').join(' / ')});
+  // 3 confluence
+  const buys=a.sigs.filter(x=>x.t==='buy').length,sells=a.sigs.filter(x=>x.t==='sell').length;
+  const cc=isL?buys:sells;
+  checks.push({k:'conf',label:'Confluence ≥ 4/5 '+(isL?'bullish':'bearish'),ok:cc>=AF_CONF_MIN,val:cc+'/5'});
+  // 4 opportunity & 5 risk (direction-neutral)
+  const orr=(typeof oppRisk==='function')?oppRisk():null;const opp=orr?orr.opp:0,risk=orr?orr.risk:100;
+  checks.push({k:'opp',label:'Opportunity ≥ 80/100',ok:opp>=AF_OPP_MIN,val:opp+'/100'});
+  checks.push({k:'risk',label:'Risk ≤ 15/100',ok:risk<=AF_RISK_MAX,val:risk+'/100'});
+  // 6 rsi window (mirrored)
+  const rsi=(a.rsiNow!=null)?a.rsiNow:50;
+  const rOk=isL?(rsi>AF_RSI_L_LO&&rsi<AF_RSI_L_HI):(rsi>AF_RSI_S_LO&&rsi<AF_RSI_S_HI);
+  checks.push({k:'rsi',label:'RSI '+(isL?'50–70':'30–50'),ok:rOk,val:fmt(rsi,1)});
+  // 7 atr percentile (direction-neutral)
+  const ap=afAtrPctile();
+  checks.push({k:'atr',label:'ATR > 70-bar percentile',ok:ap.ok,val:ap.enough?(Math.round(ap.rank*100)+'th pctl'):'warming up'});
+  checks.forEach(c=>{if(!c.ok)pass=false;});
+  return {pass:pass,checks:checks,dir:dir,opp:opp,risk:risk};
+}
+
+/* ============================================================================
+   ALFAJAR BACKTEST — replays history through the SAME afDirFilters() the live
+   agent uses (no formula drift). Fetches Binance klines for the active TF +
+   15m/1h/4h for the MTF filter, simulates SL/TP/time-stop/fees, buckets the
+   results into 1d / 1w / 1m / 6m windows. Screening tool, NOT a forecast.
+   ============================================================================ */
+const AF_BT_W=320;            // lookback window fed to analyze() each bar
+const AF_BT_MONTHS=6;
+let afBtDir='long';           // default: test the long parameters
+let afBtBusy=false;
+
+function afBtSleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function afBtInterval(tf){return ({'1D':'1d','1W':'1w','1Mo':'1M'})[tf]||tf;}
+function afBtProgress(msg,pct){const p=$('#afBtProg');if(p)p.innerHTML='<div class="af-bt-bar"><span style="width:'+Math.max(0,Math.min(100,pct))+'%"></span></div><div class="af-bt-msg">'+msg+'</div>';}
+
+async function afBtKlines(interval,months,full){
+  const end=Date.now(),start=end-months*30*24*3600*1000;const sym=activeSym+'USDT';
+  let out=[],cur=start,guard=0;
+  while(cur<end&&guard<60){guard++;
+    const url='https://api.binance.com/api/v3/klines?symbol='+sym+'&interval='+interval+'&startTime='+cur+'&limit=1000';
+    let j;try{const r=await fetch(url);j=await r.json();}catch(e){break;}
+    if(!Array.isArray(j)||!j.length)break;
+    for(const k of j){full?out.push({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4]}):out.push({t:+k[0],c:+k[4]});}
+    const last=+j[j.length-1][0];if(j.length<1000)break;cur=last+1;await afBtSleep(110);
+  }
+  return out;
+}
+
+function afBtGross(p,px){return (p.dir==='long'?1:-1)*(px-p.entry)*p.size;}
+function afBtFee(p,px){return p.entry*p.size*AF_FEE+px*p.size*AF_FEE;}
+function afBtNet(p,px){return afBtGross(p,px)-afBtFee(p,px);}
+function afBtClose(p,px,t,reason){const net=afBtNet(p,px);return {dir:p.dir,entry:p.entry,exit:px,pnl:net,R:net/p.riskAmt,reason:reason,openTime:p.openTime,closeTime:t,extended:p.extended};}
+
+/* manage one open position against one bar; returns a closed-trade or null */
+function afBtStep(pos,bar,ohlc,i){
+  const isL=pos.dir==='long';
+  if(isL){if(bar.low<=pos.sl)return afBtClose(pos,pos.sl,bar.time,'SL');if(bar.high>=pos.tp)return afBtClose(pos,pos.tp,bar.time,'TP');}
+  else   {if(bar.high>=pos.sl)return afBtClose(pos,pos.sl,bar.time,'SL');if(bar.low<=pos.tp)return afBtClose(pos,pos.tp,bar.time,'TP');}
+  if(bar.time>=pos.deadline){
+    const px=bar.close,net=afBtNet(pos,px);
+    if(net>=AF_MIN_PROFIT)return afBtClose(pos,px,bar.time,'TIME+');
+    if(net>0){
+      if(!pos.extended){
+        state.candles=ohlc.slice(Math.max(0,i-AF_BT_W+1),i+1);analysis=analyze(state.candles);
+        const biasOk=isL?analysis.verdict==='BULLISH':analysis.verdict==='BEARISH';
+        const cc=analysis.sigs.filter(x=>x.t===(isL?'buy':'sell')).length;
+        if(biasOk&&cc>=AF_CONF_MIN){pos.extended=true;pos.deadline=bar.time+AF_HOLD_MS;return null;}
+      }
+      return afBtClose(pos,px,bar.time,'TIME+');
+    }
+    return afBtClose(pos,px,bar.time,'TIME');
+  }
+  return null;
+}
+
+async function afBtReplay(ohlc,mtf,mode){
+  const W=AF_BT_W,trades=[],ptr={'15m':0,'1h':0,'4h':0};let pos=null;
+  const closesUpTo=(arr,key,t)=>{if(!arr||!arr.length)return [];let p=ptr[key];while(p<arr.length-1&&arr[p+1].t<=t)p++;ptr[key]=p;const out=[];for(let q=Math.max(0,p-40);q<=p&&q<arr.length;q++){if(arr[q])out.push(arr[q].c);}return out;};
+  const N=ohlc.length;
+  for(let i=Math.max(W,150);i<N-1;i++){
+    const bar=ohlc[i];
+    if(pos){const r=afBtStep(pos,bar,ohlc,i);if(r){trades.push(r);pos=null;}}
+    if(!pos){
+      state.candles=ohlc.slice(i-W+1,i+1);analysis=analyze(state.candles);
+      mtfData={'15m':closesUpTo(mtf['15m'],'15m',bar.time),'1h':closesUpTo(mtf['1h'],'1h',bar.time),'4h':closesUpTo(mtf['4h'],'4h',bar.time)};
+      let f=null,dir=null;
+      if(mode!=='short'){const lf=afDirFilters('long');if(lf.pass){f=lf;dir='long';}}
+      if(!f&&mode!=='long'){const sf=afDirFilters('short');if(sf.pass){f=sf;dir='short';}}
+      if(f&&dir){const e=ohlc[i+1],entry=e.open,atr=analysis.atr;
+        if(atr>0){const slD=AF_SL_ATR*atr,sl=dir==='long'?entry-slD:entry+slD,tp=dir==='long'?entry+AF_RR*slD:entry-AF_RR*slD,riskAmt=AF_START*AF_RISK_PCT/100;
+          pos={dir:dir,entry:entry,sl:sl,tp:tp,size:riskAmt/slD,riskAmt:riskAmt,openTime:e.time,deadline:e.time+AF_HOLD_MS,extended:false};}}
+    }
+    if(i%1500===0){afBtProgress('Replaying… '+Math.round(i/N*100)+'%',35+i/N*55);await afBtSleep(0);}
+  }
+  if(pos){const last=ohlc[N-1];trades.push(afBtClose(pos,last.close,last.time,'END'));}
+  return trades;
+}
+
+function afBtStats(tr){const n=tr.length,wins=tr.filter(t=>t.pnl>0).length;const net=tr.reduce((a,t)=>a+t.pnl,0);
+  const expR=n?tr.reduce((a,t)=>a+t.R,0)/n:0;const gp=tr.filter(t=>t.pnl>0).reduce((a,t)=>a+t.pnl,0),gl=tr.filter(t=>t.pnl<0).reduce((a,t)=>a+Math.abs(t.pnl),0);
+  const pf=gl>0?gp/gl:(gp>0?Infinity:0);return {n:n,wins:wins,wr:n?wins/n*100:0,net:net,expR:expR,pf:pf};}
+
+function afBtBucket(tr,endT,meta){
+  const win={'1 day':1,'1 week':7,'1 month':30,'6 months':180},out={};
+  for(const k in win){const cut=endT-win[k]*24*3600*1000;const sub=tr.filter(t=>t.closeTime>=cut);
+    out[k]={all:afBtStats(sub),long:afBtStats(sub.filter(t=>t.dir==='long')),short:afBtStats(sub.filter(t=>t.dir==='short'))};}
+  return {windows:out,meta:meta,total:tr.length};
+}
+
+function afBtRow(label,s){
+  if(!s.n)return '<tr><td>'+label+'</td><td colspan="5" style="color:var(--dim)">koi trade nahi</td></tr>';
+  const ec=s.expR>=0?'var(--green)':'var(--red)',nc=s.net>=0?'var(--green)':'var(--red)';
+  return '<tr><td>'+label+'</td><td>'+s.n+'</td><td>'+fmt(s.wr,0)+'%</td><td style="color:'+ec+'">'+(s.expR>=0?'+':'')+fmt(s.expR,2)+'R</td><td style="color:'+nc+'">'+(s.net>=0?'+':'−')+'$'+fmt(Math.abs(s.net),2)+'</td><td>'+(isFinite(s.pf)?fmt(s.pf,2):'∞')+'</td></tr>';
+}
+function afBtRender(res){
+  const root=$('#afBtResults');if(!root)return;
+  let h='<div class="af-bt-meta">'+res.meta.bars+' bars · '+res.meta.interval+' · '+activeSym+'USDT · mode: '+res.meta.mode+' · '+res.total+' total trades</div>';
+  h+='<table class="af-bt-table"><thead><tr><th>Window</th><th>Trades</th><th>Win%</th><th>Expectancy</th><th>Net</th><th>PF</th></tr></thead><tbody>';
+  for(const k in res.windows){const w=res.windows[k];
+    h+='<tr class="af-bt-sec"><td colspan="6">'+k+'</td></tr>';
+    h+=afBtRow('• all',w.all);
+    if(res.meta.mode==='both'){h+=afBtRow('&nbsp;&nbsp;long',w.long);h+=afBtRow('&nbsp;&nbsp;short',w.short);}
+  }
+  h+='</tbody></table>';
+  const six=res.windows['6 months'].all;
+  h+='<div class="af-bt-note">';
+  if(six.n<30)h+='⚠ 6 mahine mein sirf <b>'+six.n+'</b> trades — sample bahut chhota, expectancy <b>bharosemand nahi</b>. Filters itne sakht hain ke entries naayaab hain.';
+  else if(six.expR>0.05)h+='6m expectancy <b>+'+fmt(six.expR,2)+'R</b> after fees. Yeh sirf <b>screening clue</b> hai — past pe fit hua number aksar overfit hota hai. Live forward-test phir bhi lazmi.';
+  else h+='6m expectancy <b>'+fmt(six.expR,2)+'R</b> after fees — past 6 mahine mein in parameters ka edge <b>nahi</b> dikha. Yeh qeemti maloomat hai: 2 mahine bachao ya parameters badlo.';
+  h+=' Backtest mein slippage/emotion nahi, aur MTF history approximate hai.</div>';
+  root.innerHTML=h;
+}
+
+async function afBtRun(){
+  if(afBtBusy)return;
+  if(typeof activeSym==='undefined'){afBtProgress('Terminal abhi load nahi hua.',100);return;}
+  afBtBusy=true;
+  const interval=afBtInterval(state.tf),mode=afBtDir;
+  const snap={candles:state.candles,analysis:(typeof analysis!=='undefined'?analysis:null),mtf:mtfData};
+  try{
+    afBtProgress('Fetching '+AF_BT_MONTHS+'m '+interval+' candles…',5);
+    const ohlc=await afBtKlines(interval,AF_BT_MONTHS,true);
+    if(ohlc.length<200){afBtProgress('Sirf '+ohlc.length+' bars mile — itne kam pe backtest bemaani. Chart ko 15m ya 1h par rakho.',100);afBtBusy=false;return;}
+    afBtProgress('Fetching multi-timeframe history…',20);
+    const m15=await afBtKlines('15m',AF_BT_MONTHS,false),m1h=await afBtKlines('1h',AF_BT_MONTHS,false),m4h=await afBtKlines('4h',AF_BT_MONTHS,false);
+    afBtProgress('Replaying '+ohlc.length+' bars…',35);
+    const trades=await afBtReplay(ohlc,{'15m':m15,'1h':m1h,'4h':m4h},mode);
+    const res=afBtBucket(trades,ohlc[ohlc.length-1].time,{interval:interval,bars:ohlc.length,mode:mode});
+    afBtProgress('Done — '+trades.length+' trades simulated.',100);
+    afBtRender(res);
+  }catch(e){afBtProgress('Error: '+(e&&e.message?e.message:e),100);}
+  finally{
+    state.candles=snap.candles;if(snap.analysis)analysis=snap.analysis;mtfData=snap.mtf;afBtBusy=false;
+    if(typeof render==='function'){try{render();}catch(e){}}
+  }
+}
+
+function afBtSetDir(d){if(d!=='long'&&d!=='short'&&d!=='both')return;afBtDir=d;['long','short','both'].forEach(m=>{const b=$('#afBtDir-'+m);if(b)b.classList.toggle('on',afBtDir===m);});}
+function afBtInit(){
+  const r=$('#afBtRun');if(r)r.addEventListener('click',afBtRun);
+  ['long','short','both'].forEach(m=>{const b=$('#afBtDir-'+m);if(b)b.addEventListener('click',()=>afBtSetDir(m));});
+  afBtSetDir('long');
+}
+
+
+/* ============================================================================
+   ALFAJAR BACKTEST — research extras (anti-trap): adjustable params,
+   in-sample/out-of-sample split, random-entry baseline, bootstrap CI,
+   trade distribution, equity curve. Built to see results from every angle.
+   ============================================================================ */
+
+/* read tweakable params from the inputs into the (now mutable) AF_* vars */
+function afBtNum(id,def){const e=$('#'+id);if(!e)return def;const v=parseFloat(e.value);return isFinite(v)?v:def;}
+function afBtReadParams(){
+  AF_SL_ATR   = Math.max(0.1, afBtNum('pSlAtr',AF_SL_ATR));
+  AF_RR       = Math.max(0.2, afBtNum('pRr',AF_RR));
+  AF_HOLD_MS  = Math.max(1, afBtNum('pHold',1)) * 3600000;
+  AF_FEE      = Math.max(0, afBtNum('pFee',0.05)) / 100;
+  AF_MIN_PROFIT = Math.max(0, afBtNum('pMinP',AF_MIN_PROFIT));
+  AF_CONF_MIN = Math.round(Math.max(0,Math.min(5, afBtNum('pConf',AF_CONF_MIN))));
+  AF_OPP_MIN  = afBtNum('pOpp',AF_OPP_MIN);
+  AF_RISK_MAX = afBtNum('pRisk',AF_RISK_MAX);
+  AF_RSI_L_LO = afBtNum('pRsiLlo',AF_RSI_L_LO); AF_RSI_L_HI = afBtNum('pRsiLhi',AF_RSI_L_HI);
+  AF_RSI_S_LO = afBtNum('pRsiSlo',AF_RSI_S_LO); AF_RSI_S_HI = afBtNum('pRsiShi',AF_RSI_S_HI);
+  AF_ATR_PCTL = Math.max(0,Math.min(1, afBtNum('pAtrPctl',AF_ATR_PCTL*100)/100));
+}
+
+/* true-range ATR matching analyze()'s atr, at absolute index i */
+function afQuickAtr(o,i){let mm=Math.min(14,i);if(mm<1)return 0;let s=0;for(let k=i-mm+1;k<=i;k++){s+=Math.max(o[k].high-o[k].low,Math.abs(o[k].high-o[k-1].close),Math.abs(o[k].low-o[k-1].close));}return s/mm;}
+
+/* simulate a single trade opened at bar i+1 (used by the random baseline) */
+function afBtSimTrade(o,i,dir){
+  if(i+1>=o.length)return null;const atr=afQuickAtr(o,i);if(atr<=0)return null;
+  const entry=o[i+1].open,slD=AF_SL_ATR*atr,sl=dir==='long'?entry-slD:entry+slD,tp=dir==='long'?entry+AF_RR*slD:entry-AF_RR*slD;
+  const riskAmt=AF_START*AF_RISK_PCT/100,pos={dir:dir,entry:entry,sl:sl,tp:tp,size:riskAmt/slD,riskAmt:riskAmt,openTime:o[i+1].time,deadline:o[i+1].time+AF_HOLD_MS,extended:false};
+  for(let j=i+1;j<o.length;j++){const bar=o[j],isL=dir==='long';
+    if(isL){if(bar.low<=sl)return afBtClose(pos,sl,bar.time,'SL');if(bar.high>=tp)return afBtClose(pos,tp,bar.time,'TP');}
+    else   {if(bar.high>=sl)return afBtClose(pos,sl,bar.time,'SL');if(bar.low<=tp)return afBtClose(pos,tp,bar.time,'TP');}
+    if(bar.time>=pos.deadline){const net=afBtNet(pos,bar.close);return afBtClose(pos,bar.close,bar.time,net>=0?'TIME+':'TIME');}
+  }
+  const last=o[o.length-1];return afBtClose(pos,last.close,last.time,'END');
+}
+
+/* random-entry control: same dir mix, SL/TP/fees, but entries at random bars */
+function afBtBaseline(o,trades){
+  const N=trades.length;if(N<5)return null;
+  const dirs=trades.map(t=>t.dir),lo=Math.min(o.length-2,Math.max(AF_BT_W,150)),hi=o.length-2;
+  if(hi<=lo)return null;
+  const K=200,iterMeans=[];let allR=0,allN=0;
+  for(let k=0;k<K;k++){let sum=0,cnt=0;
+    for(let m=0;m<N;m++){const dir=dirs[m],i=lo+Math.floor(Math.random()*(hi-lo)),r=afBtSimTrade(o,i,dir);if(r){sum+=r.R;cnt++;allR+=r.R;allN++;}}
+    if(cnt)iterMeans.push(sum/cnt);
+  }
+  iterMeans.sort((a,b)=>a-b);
+  const stratExp=trades.reduce((a,t)=>a+t.R,0)/N;
+  const beat=iterMeans.length?iterMeans.filter(x=>x<stratExp).length/iterMeans.length*100:0;
+  return {randMean:allN?allR/allN:0,beat:beat,stratExp:stratExp,K:K};
+}
+
+/* bootstrap 95% CI on expectancy (R) */
+function afBtBootstrap(trades){
+  const R=trades.map(t=>t.R),N=R.length;if(N<5)return null;
+  const B=1000,means=[];for(let b=0;b<B;b++){let s=0;for(let i=0;i<N;i++)s+=R[Math.floor(Math.random()*N)];means.push(s/N);}
+  means.sort((a,b)=>a-b);
+  return {lo:means[Math.floor(B*0.025)],hi:means[Math.floor(B*0.975)],mean:R.reduce((a,x)=>a+x,0)/N};
+}
+
+function afBtDistribution(trades){
+  const by={};trades.forEach(t=>{by[t.reason]=(by[t.reason]||0)+1;});
+  let aw=0,wl=0,al=0,ll=0,lw=-1e9,lloss=1e9;
+  trades.forEach(t=>{if(t.pnl>0){aw+=t.R;wl++;if(t.R>lw)lw=t.R;}else{al+=t.R;ll++;if(t.R<lloss)lloss=t.R;}});
+  let cur=0,mx=0;trades.forEach(t=>{if(t.pnl<=0){cur++;if(cur>mx)mx=cur;}else cur=0;});
+  return {by:by,avgWin:wl?aw/wl:0,avgLoss:ll?al/ll:0,largestWin:wl?lw:0,largestLoss:ll?lloss:0,longestLossStreak:mx,wins:wl,losses:ll};
+}
+
+function afBtEquity(trades){
+  let eq=0,peak=0,mdd=0;const pts=[0];
+  trades.slice().sort((a,b)=>a.closeTime-b.closeTime).forEach(t=>{eq+=t.R;pts.push(eq);if(eq>peak)peak=eq;const dd=peak-eq;if(dd>mdd)mdd=dd;});
+  return {pts:pts,final:eq,maxDD:mdd};
+}
+
+function afBtSplit(trades){
+  if(trades.length<6)return null;
+  const s=trades.slice().sort((a,b)=>a.openTime-b.openTime),t0=s[0].openTime,t1=s[s.length-1].openTime,cut=t0+(t1-t0)*0.7;
+  return {is:afBtStats(s.filter(t=>t.openTime<=cut)),oos:afBtStats(s.filter(t=>t.openTime>cut))};
+}
+
+function afBtSparkline(pts){
+  if(!pts||pts.length<2)return '';
+  const W=520,H=90,min=Math.min.apply(null,pts),max=Math.max.apply(null,pts),rng=(max-min)||1;
+  const x=i=>i/(pts.length-1)*W,y=v=>H-((v-min)/rng)*(H-8)-4;
+  let d='';pts.forEach((v,i)=>{d+=(i?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' ';});
+  const zeroY=y(0),col=pts[pts.length-1]>=0?'#22c784':'#f6465d';
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="90" preserveAspectRatio="none">'+
+    (0>=min&&0<=max?'<line x1="0" y1="'+zeroY.toFixed(1)+'" x2="'+W+'" y2="'+zeroY.toFixed(1)+'" stroke="#2b3139" stroke-dasharray="3 3"/>':'')+
+    '<path d="'+d+'" fill="none" stroke="'+col+'" stroke-width="1.6"/></svg>';
+}
+
+function afBtChip(label,val,col){return '<div class="bt-chip"><div class="k">'+label+'</div><div class="v" style="color:'+(col||'var(--txt)')+'">'+val+'</div></div>';}
+
+function afBtRenderFull(trades,ohlc,mode,interval){
+  const root=$('#afBtResults');if(!root)return;
+  const N=trades.length,st=afBtStats(trades);
+  if(N<1){root.innerHTML='<div class="bt-note">In parameters par 6 mahine mein <b>ek bhi trade nahi bana</b>. Filters bahut sakht hain — confluence ya thresholds thoda dheela karke dobara dekho.</div>';return;}
+  const boot=afBtBootstrap(trades),split=afBtSplit(trades),base=afBtBaseline(ohlc,trades),dist=afBtDistribution(trades),eq=afBtEquity(trades);
+
+  let h='<div class="bt-meta">'+ohlc.length+' bars · '+interval+' · '+activeSym+'USDT · mode: '+mode+' · '+N+' trades</div>';
+
+  // headline chips
+  h+='<div class="bt-chips">';
+  h+=afBtChip('Trades',''+N,N<30?'var(--gold)':'var(--txt)');
+  h+=afBtChip('Win-rate',fmt(st.wr,0)+'%','var(--txt)');
+  h+=afBtChip('Expectancy',(st.expR>=0?'+':'')+fmt(st.expR,2)+'R',st.expR>=0?'var(--green)':'var(--red)');
+  h+=afBtChip('Net',(st.net>=0?'+':'−')+'$'+fmt(Math.abs(st.net),0),st.net>=0?'var(--green)':'var(--red)');
+  h+=afBtChip('Profit factor',isFinite(st.pf)?fmt(st.pf,2):'∞','var(--txt)');
+  h+=afBtChip('Max DD','−'+fmt(eq.maxDD,2)+'R','var(--red)');
+  h+='</div>';
+
+  // equity curve
+  h+='<div class="bt-sub">Equity curve (cumulative R)</div>'+afBtSparkline(eq.pts);
+
+  // anti-trap panel
+  h+='<div class="bt-sub" style="margin-top:14px">Trap checks — yeh batate hain nateeja asli hai ya dhoka</div>';
+  h+='<table class="af-bt-table"><tbody>';
+  // 1 sample size
+  h+='<tr><td>Sample size</td><td>'+N+' trades</td><td style="color:'+(N>=30?'var(--green)':'var(--gold)')+'">'+(N>=30?'kaafi':'kam — bharosemand nahi')+'</td></tr>';
+  // 2 bootstrap CI
+  if(boot){const sig=boot.lo>0?'positive (CI > 0)':boot.hi<0?'negative (CI < 0)':'zero ko cross karta hai → shor';
+    h+='<tr><td>Expectancy 95% CI</td><td>['+(boot.lo>=0?'+':'')+fmt(boot.lo,2)+'R, '+(boot.hi>=0?'+':'')+fmt(boot.hi,2)+'R]</td><td style="color:'+(boot.lo>0?'var(--green)':boot.hi<0?'var(--red)':'var(--gold)')+'">'+sig+'</td></tr>';}
+  // 3 OOS split
+  if(split){const isE=split.is.expR,oo=split.oos.expR;const overfit=(isE>0.05&&oo<0);
+    h+='<tr><td>In-sample (first 70%)</td><td>'+(isE>=0?'+':'')+fmt(isE,2)+'R · '+split.is.n+' tr</td><td></td></tr>';
+    h+='<tr><td>Out-of-sample (last 30%)</td><td>'+(oo>=0?'+':'')+fmt(oo,2)+'R · '+split.oos.n+' tr</td><td style="color:'+(overfit?'var(--red)':(oo>0?'var(--green)':'var(--dim)'))+'">'+(overfit?'OVERFIT shak — IS achha, OOS bura':(oo>0?'OOS bhi positive':'OOS positive nahi'))+'</td></tr>';}
+  // 4 random baseline
+  if(base){h+='<tr><td>Random-entry baseline</td><td>rand exp '+(base.randMean>=0?'+':'')+fmt(base.randMean,2)+'R</td><td style="color:'+(base.beat>=90?'var(--green)':base.beat>=70?'var(--gold)':'var(--red)')+'">strategy beats '+fmt(base.beat,0)+'% of random'+(base.beat<70?' → filters ka edge mashkook':'')+'</td></tr>';}
+  h+='</tbody></table>';
+
+  // distribution
+  h+='<div class="bt-sub" style="margin-top:14px">Distribution</div>';
+  h+='<div class="bt-chips">';
+  Object.keys(dist.by).forEach(k=>{h+=afBtChip(k,''+dist.by[k],k==='TP'?'var(--green)':k==='SL'?'var(--red)':'var(--muted)');});
+  h+=afBtChip('Avg win',(dist.avgWin>=0?'+':'')+fmt(dist.avgWin,2)+'R','var(--green)');
+  h+=afBtChip('Avg loss',fmt(dist.avgLoss,2)+'R','var(--red)');
+  h+=afBtChip('Largest win','+'+fmt(dist.largestWin,2)+'R','var(--green)');
+  h+=afBtChip('Largest loss',fmt(dist.largestLoss,2)+'R','var(--red)');
+  h+=afBtChip('Longest loss streak',''+dist.longestLossStreak,'var(--gold)');
+  h+='</div>';
+
+  // recency windows
+  const res=afBtBucket(trades,ohlc[ohlc.length-1].time,{interval:interval,bars:ohlc.length,mode:mode});
+  h+='<div class="bt-sub" style="margin-top:14px">Recency windows</div>';
+  h+='<table class="af-bt-table"><thead><tr><th>Window</th><th>Trades</th><th>Win%</th><th>Expectancy</th><th>Net</th><th>PF</th></tr></thead><tbody>';
+  for(const k in res.windows){const w=res.windows[k].all;h+=afBtRow(k,w);}
+  h+='</tbody></table>';
+
+  // synthesized honest verdict
+  let flags=[];
+  if(N<30)flags.push('sample chhota');
+  if(boot&&boot.lo<=0)flags.push('CI zero cross karta hai');
+  if(split&&split.is.expR>0.05&&split.oos.expR<0)flags.push('OOS overfit shak');
+  if(base&&base.beat<70)flags.push('random se mushkil se behtar');
+  let verdict;
+  if(st.expR<=0)verdict='<b>Edge nahi.</b> 6 mahine mein in parameters ka expectancy '+fmt(st.expR,2)+'R — yeh qeemti maloomat hai, 2 mahine bachao ya parameters badlo (out-of-sample par check karke).';
+  else if(flags.length===0)verdict='<b>Promising clue:</b> positive expectancy, CI > 0, OOS bhi positive, aur random se saaf behtar. Phir bhi <b>live forward-test lazmi</b> — yeh past hai, future nahi.';
+  else verdict='<b>Ehtiyaat:</b> expectancy positive hai magar yeh flags hain → '+flags.join(' · ')+'. Iska matlab number <b>overfit/luck</b> ho sakta hai. Parameter wajah ki bunyaad par badlo, number chase mat karo.';
+  h+='<div class="bt-note">'+verdict+' Backtest mein slippage/emotion nahi; Risk-score funding ke baghair; MTF history approximate.</div>';
+
+  root.innerHTML=h;
+}
+
+/* orchestrator: read params -> fetch -> replay -> full render */
+async function afBtRunFull(){
+  if(afBtBusy)return;afBtBusy=true;afBtReadParams();
+  const interval=afBtInterval(state.tf),mode=afBtDir;
+  const snap={candles:state.candles,analysis:(typeof analysis!=='undefined'?analysis:null),mtf:mtfData};
+  try{
+    afBtProgress('Fetching 6m '+interval+' candles…',5);
+    const ohlc=await afBtKlines(interval,AF_BT_MONTHS,true);
+    if(ohlc.length<200){afBtProgress('Sirf '+ohlc.length+' bars — kam. TF chhota karo (15m/1h).',100);afBtBusy=false;return;}
+    afBtProgress('Fetching multi-timeframe…',20);
+    const m15=await afBtKlines('15m',AF_BT_MONTHS,false),m1h=await afBtKlines('1h',AF_BT_MONTHS,false),m4h=await afBtKlines('4h',AF_BT_MONTHS,false);
+    afBtProgress('Replaying '+ohlc.length+' bars…',35);
+    const trades=await afBtReplay(ohlc,{'15m':m15,'1h':m1h,'4h':m4h},mode);
+    afBtProgress('Analysing (baseline, bootstrap, OOS)…',92);
+    afBtRenderFull(trades,ohlc,mode,interval);
+    afBtProgress('Done — '+trades.length+' trades.',100);
+  }catch(e){afBtProgress('Error: '+(e&&e.message?e.message:e),100);}
+  finally{state.candles=snap.candles;if(snap.analysis)analysis=snap.analysis;mtfData=snap.mtf;afBtBusy=false;}
+}
+
+function afBtInit2(){
+  const r=$('#afBtRun');if(r)r.addEventListener('click',afBtRunFull);
+  ['long','short','both'].forEach(m=>{const b=$('#afBtDir-'+m);if(b)b.addEventListener('click',()=>afBtSetDir(m));});
+  afBtSetDir('long');
+}
+
+
+function btSetTf(tf){state.tf=tf;document.querySelectorAll('#btTfSeg button').forEach(b=>b.classList.toggle('on',b.dataset.tf===tf));}
+document.querySelectorAll('#btTfSeg button').forEach(b=>b.addEventListener('click',()=>btSetTf(b.dataset.tf)));
+$('#btSym').addEventListener('input',e=>{activeSym=(e.target.value||'BTC').toUpperCase().replace(/USDT$/,'').trim()||'BTC';});
+btSetTf('15m');
+afBtInit2();
+</script>
+</body></html>
