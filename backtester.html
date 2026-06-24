@@ -53,7 +53,11 @@ input.sym{background:var(--panel-2);border:1px solid var(--line);color:var(--txt
     <span class="lbl" style="margin-left:8px">Direction</span>
     <span class="seg"><button id="afBtDir-long">Long</button><button id="afBtDir-short">Short</button><button id="afBtDir-both">Both</button></span>
   </div>
-
+  <div class="row">
+    <span class="lbl">Strategy</span>
+    <span class="seg"><button id="afStrat-trend">Trend-confluence</button><button id="afStrat-reversion">Mean-reversion</button></span>
+    <span style="font-size:11px;color:var(--dim)">Reversion = "panic stretch" (RSI extreme + Bollinger ke bahar + MA200 trend-filter), target = mean (MA20).</span>
+  </div>
   <div class="params">
     <div class="bt-sub" style="margin:0 0 8px">Parameters — tweak karo, phir Run (defaults = agreed spec)</div>
     <div class="pgrid">
@@ -70,6 +74,8 @@ input.sym{background:var(--panel-2);border:1px solid var(--line);color:var(--txt
       <label class="pin"><span>RSI long hi</span><input id="pRsiLhi" value="70"></label>
       <label class="pin"><span>RSI short lo</span><input id="pRsiSlo" value="30"></label>
       <label class="pin"><span>RSI short hi</span><input id="pRsiShi" value="50"></label>
+      <label class="pin"><span>Rev RSI buy &lt;</span><input id="pRevLo" value="30"></label>
+      <label class="pin"><span>Rev RSI sell &gt;</span><input id="pRevHi" value="70"></label>
     </div>
   </div>
   <div class="row"><button class="btn go" id="afBtRun">&#9654; Run 6-month backtest</button></div>
@@ -353,6 +359,8 @@ function afBtInit(){
    ============================================================================ */
 
 /* read tweakable params from the inputs into the (now mutable) AF_* vars */
+let afStrategy='trend';                 // 'trend' (confluence) or 'reversion'
+let AF_REV_RSI_LO=30, AF_REV_RSI_HI=70; // reversion oversold/overbought thresholds
 function afBtNum(id,def){const e=$('#'+id);if(!e)return def;const v=parseFloat(e.value);return isFinite(v)?v:def;}
 function afBtReadParams(){
   AF_SL_ATR   = Math.max(0.1, afBtNum('pSlAtr',AF_SL_ATR));
@@ -366,15 +374,40 @@ function afBtReadParams(){
   AF_RSI_L_LO = afBtNum('pRsiLlo',AF_RSI_L_LO); AF_RSI_L_HI = afBtNum('pRsiLhi',AF_RSI_L_HI);
   AF_RSI_S_LO = afBtNum('pRsiSlo',AF_RSI_S_LO); AF_RSI_S_HI = afBtNum('pRsiShi',AF_RSI_S_HI);
   AF_ATR_PCTL = Math.max(0,Math.min(1, afBtNum('pAtrPctl',AF_ATR_PCTL*100)/100));
+  AF_REV_RSI_LO = afBtNum('pRevLo',30); AF_REV_RSI_HI = afBtNum('pRevHi',70);
+}
+
+/* ---- strategy decision functions ---- */
+/* trend-confluence: the original 7-filter agent logic */
+function afTrendDecide(mode){
+  let f=null,dir=null;
+  if(mode!=='short'){const lf=afDirFilters('long');if(lf.pass){f=lf;dir='long';}}
+  if(!f&&mode!=='long'){const sf=afDirFilters('short');if(sf.pass){f=sf;dir='short';}}
+  return dir?{dir:dir}:null;
+}
+/* mean-reversion: buy the panic stretch INSIDE a larger trend; target = mean (MA20) */
+function afRevDecide(mode){
+  const c=state.candles,closes=c.map(x=>x.close),L=closes.length-1;
+  const ma20=sma(closes,20),ma200=sma(closes,200),sd=stdev(closes,20);
+  if(ma20[L]==null||ma200[L]==null||sd[L]==null)return null;
+  const price=closes[L],rsi=analysis.rsiNow,upper=ma20[L]+2*sd[L],lower=ma20[L]-2*sd[L];
+  // LONG: oversold + below lower band + still above MA200 (dip inside uptrend, not a crash)
+  if(mode!=='short' && rsi<AF_REV_RSI_LO && price<lower && price>ma200[L]) return {dir:'long',tp:ma20[L]};
+  // SHORT: overbought + above upper band + below MA200 (spike inside downtrend)
+  if(mode!=='long' && rsi>AF_REV_RSI_HI && price>upper && price<ma200[L]) return {dir:'short',tp:ma20[L]};
+  return null;
 }
 
 /* true-range ATR matching analyze()'s atr, at absolute index i */
 function afQuickAtr(o,i){let mm=Math.min(14,i);if(mm<1)return 0;let s=0;for(let k=i-mm+1;k<=i;k++){s+=Math.max(o[k].high-o[k].low,Math.abs(o[k].high-o[k-1].close),Math.abs(o[k].low-o[k-1].close));}return s/mm;}
 
 /* simulate a single trade opened at bar i+1 (used by the random baseline) */
-function afBtSimTrade(o,i,dir){
+function afBtSimTrade(o,i,dir,strat){
   if(i+1>=o.length)return null;const atr=afQuickAtr(o,i);if(atr<=0)return null;
-  const entry=o[i+1].open,slD=AF_SL_ATR*atr,sl=dir==='long'?entry-slD:entry+slD,tp=dir==='long'?entry+AF_RR*slD:entry-AF_RR*slD;
+  const entry=o[i+1].open,slD=AF_SL_ATR*atr,sl=dir==='long'?entry-slD:entry+slD;
+  let tp;
+  if(strat==='reversion'){let s=0;for(let k=i-19;k<=i;k++)s+=o[k].close;tp=s/20;}
+  else tp=dir==='long'?entry+AF_RR*slD:entry-AF_RR*slD;
   const riskAmt=AF_START*AF_RISK_PCT/100,pos={dir:dir,entry:entry,sl:sl,tp:tp,size:riskAmt/slD,riskAmt:riskAmt,openTime:o[i+1].time,deadline:o[i+1].time+AF_HOLD_MS,extended:false};
   for(let j=i+1;j<o.length;j++){const bar=o[j],isL=dir==='long';
     if(isL){if(bar.low<=sl)return afBtClose(pos,sl,bar.time,'SL');if(bar.high>=tp)return afBtClose(pos,tp,bar.time,'TP');}
@@ -385,13 +418,13 @@ function afBtSimTrade(o,i,dir){
 }
 
 /* random-entry control: same dir mix, SL/TP/fees, but entries at random bars */
-function afBtBaseline(o,trades){
+function afBtBaseline(o,trades,strat){
   const N=trades.length;if(N<5)return null;
   const dirs=trades.map(t=>t.dir),lo=Math.min(o.length-2,Math.max(AF_BT_W,150)),hi=o.length-2;
   if(hi<=lo)return null;
   const K=200,iterMeans=[];let allR=0,allN=0;
   for(let k=0;k<K;k++){let sum=0,cnt=0;
-    for(let m=0;m<N;m++){const dir=dirs[m],i=lo+Math.floor(Math.random()*(hi-lo)),r=afBtSimTrade(o,i,dir);if(r){sum+=r.R;cnt++;allR+=r.R;allN++;}}
+    for(let m=0;m<N;m++){const dir=dirs[m],i=lo+Math.floor(Math.random()*(hi-lo)),r=afBtSimTrade(o,i,dir,strat);if(r){sum+=r.R;cnt++;allR+=r.R;allN++;}}
     if(cnt)iterMeans.push(sum/cnt);
   }
   iterMeans.sort((a,b)=>a-b);
@@ -441,13 +474,13 @@ function afBtSparkline(pts){
 
 function afBtChip(label,val,col){return '<div class="bt-chip"><div class="k">'+label+'</div><div class="v" style="color:'+(col||'var(--txt)')+'">'+val+'</div></div>';}
 
-function afBtRenderFull(trades,ohlc,mode,interval){
+function afBtRenderFull(trades,ohlc,mode,interval,strat){
   const root=$('#afBtResults');if(!root)return;
   const N=trades.length,st=afBtStats(trades);
-  if(N<1){root.innerHTML='<div class="bt-note">In parameters par 6 mahine mein <b>ek bhi trade nahi bana</b>. Filters bahut sakht hain — confluence ya thresholds thoda dheela karke dobara dekho.</div>';return;}
-  const boot=afBtBootstrap(trades),split=afBtSplit(trades),base=afBtBaseline(ohlc,trades),dist=afBtDistribution(trades),eq=afBtEquity(trades);
+  if(N<1){root.innerHTML='<div class="bt-note">In parameters par 6 mahine mein <b>ek bhi trade nahi bana</b> ('+(strat||'trend')+'). Thresholds thoda dheela karke dobara dekho.</div>';return;}
+  const boot=afBtBootstrap(trades),split=afBtSplit(trades),base=afBtBaseline(ohlc,trades,strat),dist=afBtDistribution(trades),eq=afBtEquity(trades);
 
-  let h='<div class="bt-meta">'+ohlc.length+' bars · '+interval+' · '+activeSym+'USDT · mode: '+mode+' · '+N+' trades</div>';
+  let h='<div class="bt-meta">'+ohlc.length+' bars · '+interval+' · '+activeSym+'USDT · '+(strat||'trend')+' · mode: '+mode+' · '+N+' trades</div>';
 
   // headline chips
   h+='<div class="bt-chips">';
@@ -511,30 +544,58 @@ function afBtRenderFull(trades,ohlc,mode,interval){
   root.innerHTML=h;
 }
 
+/* strategy-aware replay: routes entries through trend or reversion logic */
+async function afReplayStrat(ohlc,mtf,mode,strat){
+  const W=AF_BT_W,trades=[],ptr={'15m':0,'1h':0,'4h':0};let pos=null;
+  const closesUpTo=(arr,key,t)=>{if(!arr||!arr.length)return [];let p=ptr[key];while(p<arr.length-1&&arr[p+1].t<=t)p++;ptr[key]=p;const out=[];for(let q=Math.max(0,p-40);q<=p&&q<arr.length;q++){if(arr[q])out.push(arr[q].c);}return out;};
+  const N=ohlc.length,startI=Math.max(W,210);
+  for(let i=startI;i<N-1;i++){
+    const bar=ohlc[i];
+    if(pos){const r=afBtStep(pos,bar,ohlc,i);if(r){trades.push(r);pos=null;}}
+    if(!pos){
+      state.candles=ohlc.slice(i-W+1,i+1);analysis=analyze(state.candles);
+      mtfData={'15m':closesUpTo(mtf['15m'],'15m',bar.time),'1h':closesUpTo(mtf['1h'],'1h',bar.time),'4h':closesUpTo(mtf['4h'],'4h',bar.time)};
+      const dec=(strat==='reversion')?afRevDecide(mode):afTrendDecide(mode);
+      if(dec&&dec.dir){const e=ohlc[i+1],entry=e.open,atr=analysis.atr;
+        if(atr>0){const slD=AF_SL_ATR*atr,sl=dec.dir==='long'?entry-slD:entry+slD;
+          let tp;
+          if(strat==='reversion'&&dec.tp!=null)tp=dec.tp;
+          else tp=dec.dir==='long'?entry+AF_RR*slD:entry-AF_RR*slD;
+          const riskAmt=AF_START*AF_RISK_PCT/100;
+          pos={dir:dec.dir,entry:entry,sl:sl,tp:tp,size:riskAmt/slD,riskAmt:riskAmt,openTime:e.time,deadline:e.time+AF_HOLD_MS,extended:false};}}
+    }
+    if(i%1500===0){afBtProgress('Replaying… '+Math.round(i/N*100)+'%',35+i/N*55);await afBtSleep(0);}
+  }
+  if(pos){const last=ohlc[N-1];trades.push(afBtClose(pos,last.close,last.time,'END'));}
+  return trades;
+}
+
 /* orchestrator: read params -> fetch -> replay -> full render */
 async function afBtRunFull(){
   if(afBtBusy)return;afBtBusy=true;afBtReadParams();
-  const interval=afBtInterval(state.tf),mode=afBtDir;
+  const interval=afBtInterval(state.tf),mode=afBtDir,strat=afStrategy;
   const snap={candles:state.candles,analysis:(typeof analysis!=='undefined'?analysis:null),mtf:mtfData};
   try{
     afBtProgress('Fetching 6m '+interval+' candles…',5);
     const ohlc=await afBtKlines(interval,AF_BT_MONTHS,true);
-    if(ohlc.length<200){afBtProgress('Sirf '+ohlc.length+' bars — kam. TF chhota karo (15m/1h).',100);afBtBusy=false;return;}
+    if(ohlc.length<250){afBtProgress('Sirf '+ohlc.length+' bars — kam (MA200 ke liye 250+ chahiye). TF chhota karo.',100);afBtBusy=false;return;}
     afBtProgress('Fetching multi-timeframe…',20);
     const m15=await afBtKlines('15m',AF_BT_MONTHS,false),m1h=await afBtKlines('1h',AF_BT_MONTHS,false),m4h=await afBtKlines('4h',AF_BT_MONTHS,false);
-    afBtProgress('Replaying '+ohlc.length+' bars…',35);
-    const trades=await afBtReplay(ohlc,{'15m':m15,'1h':m1h,'4h':m4h},mode);
+    afBtProgress('Replaying '+ohlc.length+' bars ('+strat+')…',35);
+    const trades=await afReplayStrat(ohlc,{'15m':m15,'1h':m1h,'4h':m4h},mode,strat);
     afBtProgress('Analysing (baseline, bootstrap, OOS)…',92);
-    afBtRenderFull(trades,ohlc,mode,interval);
+    afBtRenderFull(trades,ohlc,mode,interval,strat);
     afBtProgress('Done — '+trades.length+' trades.',100);
   }catch(e){afBtProgress('Error: '+(e&&e.message?e.message:e),100);}
   finally{state.candles=snap.candles;if(snap.analysis)analysis=snap.analysis;mtfData=snap.mtf;afBtBusy=false;}
 }
 
+function afBtSetStrat(s){if(s!=='trend'&&s!=='reversion')return;afStrategy=s;['trend','reversion'].forEach(m=>{const b=$('#afStrat-'+m);if(b)b.classList.toggle('on',afStrategy===m);});}
 function afBtInit2(){
   const r=$('#afBtRun');if(r)r.addEventListener('click',afBtRunFull);
   ['long','short','both'].forEach(m=>{const b=$('#afBtDir-'+m);if(b)b.addEventListener('click',()=>afBtSetDir(m));});
-  afBtSetDir('long');
+  ['trend','reversion'].forEach(m=>{const b=$('#afStrat-'+m);if(b)b.addEventListener('click',()=>afBtSetStrat(m));});
+  afBtSetDir('long');afBtSetStrat('trend');
 }
 
 
