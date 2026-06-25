@@ -1149,6 +1149,33 @@
     </div>
   </div>
 
+  <div class="sec-title">Agent 2 &mdash; Mean-Reversion <span style="font-size:9px;color:var(--gold);letter-spacing:.1em">AUTONOMOUS PAPER AGENT &middot; SIMULATION</span></div>
+  <div class="card" id="mrPanel">
+    <div class="af-banner">&#128679; SIMULATION ONLY &mdash; alag virtual <b>$10,000</b>, no real money, no keys. Yeh <b>doosra agent</b> Alfajar se bilkul alag account &amp; scorecard ke saath <b>mean-reversion ("panic stretch")</b> chalata hai: <b>RSI&lt;35</b> + price <b>lower Bollinger</b> ke neeche + price <b>MA200</b> ke upar &rarr; LONG; target = <b>MA20</b> (mean). Dono agents parallel chalenge &mdash; yeh 2-strategy honest live test hai, prediction nahi.</div>
+    <div class="af-ctrlrow">
+      <button class="af-btn" id="mrToggle">&#9654; Start agent</button>
+      <button class="af-btn" id="mrResetBtn">Reset</button>
+      <button class="af-btn" id="mrExport">Export</button>
+      <span class="af-state" id="mrState">STOPPED</span>
+    </div>
+    <div class="af-tf">Running on: <span id="mrTf">&mdash;</span> &middot; long-only &middot; risk 1%/trade &middot; SL 1.5&times;ATR &middot; target MA20 (mean) &middot; 24h max-hold</div>
+    <div class="af-livewrap"><span id="mrLive"></span></div>
+    <div class="af-statgrid" id="mrStatsBox"></div>
+    <div class="af-grid2">
+      <div>
+        <div class="af-sub">Live entry check (all 3 must pass)</div>
+        <div id="mrChecklist"></div>
+        <div class="af-sub" style="margin-top:14px">Current position</div>
+        <div id="mrPos"></div>
+      </div>
+      <div>
+        <div class="af-sub">Activity log</div>
+        <div class="af-feed" id="mrFeed"></div>
+        <div class="af-note" style="margin-top:10px">Exit: price wapas <b>MA20 (mean)</b> tak &rarr; <b>WIN</b>; ya <b>SL 1.5&times;ATR</b> &rarr; <b>LOSS</b>; ya <b>24h</b> &rarr; time-exit. Har trade pe real taker fee (dono taraf). Sirf tab chalta hai jab yeh tab khuli ho.</div>
+      </div>
+    </div>
+  </div>
+
   <div class="sec-title">Signal Track Record <span style="font-size:9px;color:var(--dim);letter-spacing:.1em">HONESTY LOG &middot; KYA DASHBOARD THEEK HAI?</span></div>
   <div class="card">
     <div class="note" style="margin-bottom:14px">Jab bhi dashboard koi signal de, <b>"Log current signal"</b> dabayein &mdash; ye abhi ka <b>verdict, price aur Scenario ka target</b> mehfooz kar leta hai. Phir chuni hui muddat (default <b>24h</b>) ke andar agar price pehle <b>Target (+2&times;ATR)</b> chhoo le &rarr; <span style="color:var(--green)">WIN +2R</span>; agar pehle <b>Stop (&minus;1&times;ATR)</b> lag jaye &rarr; <span style="color:var(--red)">LOSS &minus;1R</span>; window khatam to <span style="color:var(--gold)">TIMEOUT</span> (market par close). Neeche <b>win-rate aur expectancy (R)</b> khud banti jaati hai. Niche accuracy khud-ba-khud banti jaati hai. <b style="color:var(--gold)">Yaad rahe:</b> achhi accuracy bhi mustaqbil ki <span class="hl">guarantee nahi</span> &mdash; ye sirf dashboard ko jawabdeh rakhta hai, aur number tabhi maani rakhta hai jab <b>sample bada ho</b> (kam se kam ~20&ndash;30 logs).</div>
@@ -1472,7 +1499,7 @@ function render(){
   renderTVRegime();renderVolRisk();renderBreadth();
   renderNowTool();
   demoTick();
-  if(typeof afTick==='function')afTick();
+  if(typeof afTick==='function')afTick();if(typeof mrTick==='function')mrTick();
   if(!calcTouched)prefillCalc();
 }
 function drawVol(){
@@ -2197,14 +2224,14 @@ function demoInit(){
    ============================================================================ */
 const AF_KEY='btc_alfajar';
 const AF_START=10000;            // virtual USDT
-const AF_FEE=0.0005;             // 0.05% taker, PER SIDE (honest fee model)
+const AF_FEE=0.0002;             // 0.02% PER SIDE (forward-test; optimistic vs ~0.05% real)
 const AF_RISK_PCT=1;             // risk 1% of equity per trade = 1R
-const AF_SL_ATR=1.0;             // stop = 1.0 x ATR from entry
-const AF_RR=2.0;                 // target = +2R  (1:2)
-const AF_HOLD_MS=3600000;        // hard life: 1 hour
+const AF_SL_ATR=0.75;            // stop = 0.75 x ATR (forward-test) - tight, expect whipsaw
+const AF_RR=1.5;                 // target = +1.5R (1:1.5) forward-test
+const AF_HOLD_MS=14400000;       // hard life: 4 hours (forward-test)
 const AF_MIN_PROFIT=10;          // $ — time-exit minimum-profit rule
 const AF_DAILY_STOP_R=3;         // pause the day after -3R realized
-const AF_CONF_MIN=4;             // confluence >= 4 / 5
+const AF_CONF_MIN=3;             // confluence >= 3 / 5 (forward-test, frozen)
 const AF_OPP_MIN=80;             // opportunity >= 80 / 100
 const AF_RISK_MAX=15;            // risk <= 15 / 100
 const AF_RSI_L_LO=50, AF_RSI_L_HI=70;  // long rsi window
@@ -2488,6 +2515,140 @@ function afRender(){
       return '<div class="af-feed-row"><span class="af-feed-t">'+tm+'</span><span style="color:'+col+'">'+e.m+'</span></div>';}).join('');}
 }
 
+/* ===================== AGENT 2 — MEAN-REVERSION ("panic stretch") =====================
+   Independent paper-trading agent running PARALLEL to Alfajar (Agent 1).
+   Own account, own localStorage, own scorecard. Long-only.
+   Entry : RSI(14) < 35  AND  price < lower Bollinger(20,2)  AND  price > MA200
+   Exit  : price back up to MA20 (the mean) -> WIN ; SL = entry-1.5*ATR -> LOSS ;
+           24h max-hold -> time-exit. Same risk/fee/start as Alfajar (fair test).
+   Reuses globals: analysis, state, activeSym, fmt, $, sma, stdev, rsiCalc,
+                   afStatCard, afDur, AF_FEE, AF_RISK_PCT, AF_START.
+====================================================================================== */
+var MR_KEY='btc_meanrev';
+var MR_START=(typeof AF_START!=='undefined'?AF_START:10000);
+var MR_RISK_PCT=(typeof AF_RISK_PCT!=='undefined'?AF_RISK_PCT:1);
+var MR_SL_ATR=1.5, MR_RSI=35, MR_BB_N=20, MR_BB_K=2, MR_MA_TREND=200, MR_MA_TGT=20;
+var MR_HOLD_MS=24*3600*1000, MR_DAILY_STOP_R=3;
+var MR_FEE=(typeof AF_FEE!=='undefined'?AF_FEE:0.0005);
+let mr={on:false,balance:MR_START,start:MR_START,pos:null,history:[],feed:[],dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:MR_START,maxDD:0};
+
+function mrLoad(){try{const r=localStorage.getItem(MR_KEY);if(r){const d=JSON.parse(r);if(d&&typeof d.balance==='number'){mr=d;
+  if(!Array.isArray(mr.history))mr.history=[];if(!Array.isArray(mr.feed))mr.feed=[];
+  if(typeof mr.start!=='number')mr.start=MR_START;if(typeof mr.maxEq!=='number')mr.maxEq=mr.start;
+  if(typeof mr.maxDD!=='number')mr.maxDD=0;if(mr.pos===undefined)mr.pos=null;
+  if(typeof mr.dayR!=='number')mr.dayR=0;}}}catch(e){}}
+function mrSave(){try{localStorage.setItem(MR_KEY,JSON.stringify(mr));}catch(e){}}
+function mrLog(msg,kind){mr.feed.unshift({t:Date.now(),m:msg,k:kind||'info'});if(mr.feed.length>40)mr.feed.length=40;mrSave();}
+
+function mrIndicators(){
+  const c=(typeof state!=='undefined'&&state.candles)?state.candles:[];
+  if(c.length<MR_MA_TREND+3)return null;
+  const cl=c.map(x=>x.close);const L=cl.length-1;
+  const rsi=rsiCalc(cl),ma20=sma(cl,MR_MA_TGT),ma200=sma(cl,MR_MA_TREND),sd=stdev(cl,MR_BB_N);
+  const rNow=rsi[L],m20=ma20[L],m200=ma200[L],s20=sd[L];
+  if(rNow==null||m20==null||m200==null||s20==null)return null;
+  const price=(typeof analysis!=='undefined'&&analysis&&analysis.price)?analysis.price:cl[L];
+  return {rsi:rNow,ma20:m20,ma200:m200,lowerBB:m20-MR_BB_K*s20,price:price,
+    atr:(typeof analysis!=='undefined'&&analysis&&analysis.atr)?analysis.atr:null,barT:c[L].time||0};
+}
+
+function mrEquity(){let eq=mr.balance;if(mr.pos){const p=(analysis&&analysis.price)?analysis.price:null;
+  if(p!=null&&mr.pos.sym===activeSym){const g=(p-mr.pos.entry)*mr.pos.size;const fee=mr.pos.entry*mr.pos.size*MR_FEE+p*mr.pos.size*MR_FEE;eq+=g-fee;}}return eq;}
+
+function mrRolloverDay(){const k=new Date().toISOString().slice(0,10);if(mr.dayKey!==k){mr.dayKey=k;mr.dayR=0;if(mr.paused){mr.paused=false;}}}
+
+function mrEvaluateEntry(){
+  if(!mr.on||mr.paused||mr.pos)return;
+  const ind=mrIndicators();if(!ind)return;
+  if(ind.barT===mr.lastBarT)return;mr.lastBarT=ind.barT;
+  if(!ind.atr||ind.atr<=0)return;
+  if(ind.rsi<MR_RSI && ind.price<ind.lowerBB && ind.price>ind.ma200)mrOpen(ind);
+}
+
+function mrOpen(ind){
+  const entry=ind.price,atr=ind.atr;const slDist=MR_SL_ATR*atr;const sl=entry-slDist;
+  const eq=mrEquity();const riskAmt=eq*MR_RISK_PCT/100;const size=riskAmt/slDist;
+  if(!isFinite(size)||size<=0)return;
+  mr.pos={id:Date.now()+''+Math.floor(Math.random()*1000),sym:activeSym,dir:'long',entry:entry,size:size,
+    riskAmt:riskAmt,sl:sl,openTime:Date.now(),deadline:Date.now()+MR_HOLD_MS,tf:(typeof state!=='undefined'?state.tf:'?'),
+    lastMark:entry,targetInit:ind.ma20};
+  mrLog('▲ LONG (mean-rev) @ $'+fmt(entry,1)+' · size '+fmt(size,4)+' '+activeSym+' · SL $'+fmt(sl,1)+' · target MA20 ~$'+fmt(ind.ma20,1)+' · risk $'+fmt(riskAmt,2)+' — RSI '+fmt(ind.rsi,0)+'<35, lower-band ke neeche, MA200 ke upar.','open');
+  mrSave();mrRender();
+}
+
+function mrClose(reason,price){
+  const p=mr.pos;if(!p)return;
+  const gross=(price-p.entry)*p.size;const fee=p.entry*p.size*MR_FEE+price*p.size*MR_FEE;const net=gross-fee;
+  mr.balance+=net;const R=p.riskAmt>0?net/p.riskAmt:0;mr.dayR+=R;
+  mr.history.unshift({id:p.id,sym:p.sym,dir:'long',entry:p.entry,exit:price,size:p.size,riskAmt:p.riskAmt,
+    gross:gross,fee:fee,pnl:net,R:R,reason:reason,openTime:p.openTime,closeTime:Date.now(),tf:p.tf});
+  if(mr.history.length>500)mr.history.length=500;mr.pos=null;
+  const tag=(reason==='TARGET')?'✓ Mean (MA20) hit':(reason==='SL')?'✗ SL':(reason==='TIME')?'⏱ Time-exit (24h)':reason;
+  mrLog(tag+' @ $'+fmt(price,1)+' · P/L '+(net>=0?'+':'−')+'$'+fmt(Math.abs(net),2)+' ('+(R>=0?'+':'')+fmt(R,2)+'R) · fee $'+fmt(fee,2),net>=0?'win':'loss');
+  if(mr.dayR<=-MR_DAILY_STOP_R&&!mr.paused){mr.paused=true;mrLog('⚠ Daily loss-guard: −'+MR_DAILY_STOP_R+'R — kal tak paused.','warn');}
+  mrSave();mrRender();
+}
+
+function mrManage(){
+  const p=mr.pos;if(!p)return;
+  if(p.sym!==activeSym){mrRender();return;}
+  const price=(analysis&&analysis.price)?analysis.price:null;if(price==null)return;
+  p.lastMark=price;
+  if(price<=p.sl){mrClose('SL',p.sl);return;}
+  const ind=mrIndicators();const tgt=ind?ind.ma20:p.targetInit;
+  if(tgt!=null&&price>=tgt){mrClose('TARGET',tgt);return;}
+  if(Date.now()>=p.deadline){mrClose('TIME',price);return;}
+  mrRender();
+}
+
+function mrStats(){const h=mr.history;const n=h.length,wins=h.filter(t=>t.pnl>0).length;
+  const net=h.reduce((a,t)=>a+t.pnl,0);const expR=n?h.reduce((a,t)=>a+t.R,0)/n:0;
+  const gp=h.filter(t=>t.pnl>0).reduce((a,t)=>a+t.pnl,0);const gl=h.filter(t=>t.pnl<0).reduce((a,t)=>a+Math.abs(t.pnl),0);
+  const pf=gl>0?gp/gl:(gp>0?Infinity:0);return {n:n,wins:wins,wr:n?wins/n*100:0,net:net,expR:expR,pf:pf};}
+
+function mrRender(){
+  const setH=(id,v)=>{const e=$('#'+id);if(e)e.innerHTML=v;};const setT=(id,v)=>{const e=$('#'+id);if(e)e.textContent=v;};
+  const st=$('#mrState');if(st){const on=mr.on&&!mr.paused;st.textContent=mr.paused?'PAUSED':(mr.on?'RUNNING':'STOPPED');st.style.color=on?'var(--green)':(mr.paused?'var(--gold)':'var(--dim)');}
+  setT('mrTf',(typeof state!=='undefined'?state.tf:'—'));
+  const tg=$('#mrToggle');if(tg)tg.innerHTML=mr.on?'&#9208; Pause agent':'&#9654; Start agent';
+  const eq=mrEquity();const openPL=eq-mr.balance;
+  if(eq>mr.maxEq)mr.maxEq=eq;const dd=mr.maxEq>0?(eq-mr.maxEq)/mr.maxEq*100:0;if(dd<mr.maxDD)mr.maxDD=dd;
+  setH('mrLive','Equity <b>$'+fmt(eq,2)+'</b> &middot; cash $'+fmt(mr.balance,2)+(mr.pos?(' &middot; open P/L <b style="color:'+(openPL>=0?'var(--green)':'var(--red)')+'">'+(openPL>=0?'+':'−')+'$'+fmt(Math.abs(openPL),2)+'</b>'):' &middot; flat'));
+  const s=mrStats();const ecol=s.expR>0.02?'var(--green)':(s.expR<-0.02?'var(--red)':'var(--muted)');
+  setH('mrStatsBox',
+    afStatCard('Trades',s.n,'var(--txt)')+
+    afStatCard('Win-rate',s.n?fmt(s.wr,0)+'%':'&mdash;',s.n?(s.wr>=50?'var(--green)':'var(--gold)'):'var(--dim)')+
+    afStatCard('Expectancy',s.n?((s.expR>=0?'+':'')+fmt(s.expR,2)+'R'):'&mdash;',ecol)+
+    afStatCard('Net P/L',(s.net>=0?'+':'−')+'$'+fmt(Math.abs(s.net),2),s.net>=0?'var(--green)':'var(--red)')+
+    afStatCard('Profit factor',s.pf===Infinity?'&infin;':fmt(s.pf,2),'var(--txt)')+
+    afStatCard('Max DD',fmt(mr.maxDD,1)+'%','var(--red)'));
+  const ind=mrIndicators();let chk='';
+  if(!ind){chk='<div class="af-note">Indicators warming up (need '+MR_MA_TREND+'+ candles)…</div>';}
+  else{const rows=[['RSI(14) &lt; 35',ind.rsi<MR_RSI,'RSI '+fmt(ind.rsi,0)],
+      ['Price &lt; lower Bollinger',ind.price<ind.lowerBB,'$'+fmt(ind.price,0)+' / $'+fmt(ind.lowerBB,0)],
+      ['Price &gt; MA200 (trend up)',ind.price>ind.ma200,'$'+fmt(ind.price,0)+' / $'+fmt(ind.ma200,0)]];
+    chk=rows.map(r=>'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid rgba(255,255,255,.06)"><span>'+(r[1]?'<span style="color:var(--green)">&#10003;</span>':'<span style="color:var(--red)">&#10007;</span>')+' '+r[0]+'</span><span style="color:var(--dim)">'+r[2]+'</span></div>').join('');}
+  setH('mrChecklist',chk);
+  const p=mr.pos;
+  if(!p){setH('mrPos','<div class="af-note">Flat — koi position nahi.</div>');}
+  else{const price=(analysis&&analysis.price)?analysis.price:p.entry;const upl=(price-p.entry)*p.size;
+    setH('mrPos','<div class="af-note" style="line-height:1.7">▲ <b>LONG '+p.sym+'</b> @ $'+fmt(p.entry,1)+' · size '+fmt(p.size,4)+'<br>SL $'+fmt(p.sl,1)+' · target MA20 ~$'+fmt(p.targetInit,1)+' · held '+afDur(Date.now()-p.openTime)+'<br>unreal P/L <b style="color:'+(upl>=0?'var(--green)':'var(--red)')+'">'+(upl>=0?'+':'−')+'$'+fmt(Math.abs(upl),2)+'</b></div>');}
+  setH('mrFeed',(mr.feed||[]).map(f=>'<div style="font-size:10.5px;padding:3px 0;color:var(--muted)"><span style="color:var(--dim)">'+afDur(Date.now()-f.t)+' ago</span> '+f.m+'</div>').join('')||'<div class="af-note">No activity yet.</div>');
+}
+
+function mrTick(){if(typeof mr==='undefined'||!mr)return;mrRolloverDay();if(mr.pos)mrManage();else if(mr.on&&!mr.paused)mrEvaluateEntry();mrRender();}
+function mrToggle(){mr.on=!mr.on;mrLog(mr.on?'▶ Agent 2 (mean-reversion) started — long-only on '+(typeof state!=='undefined'?state.tf:'?')+'.':'⏸ Agent 2 paused by user.','info');mrSave();mrRender();}
+function mrReset(){if(typeof confirm==='function'&&!confirm('Reset Agent 2 (mean-reversion) paper account to $'+fmt(MR_START,0)+'? Clears position, history and log.'))return;
+  mr={on:false,balance:MR_START,start:MR_START,pos:null,history:[],feed:[],dayKey:null,dayR:0,paused:false,lastBarT:0,maxEq:MR_START,maxDD:0};
+  mrLog('Account reset to $'+fmt(MR_START,0)+'.','info');mrSave();mrRender();}
+function mrInit(){mrLoad();
+  const tg=$('#mrToggle');if(tg)tg.addEventListener('click',mrToggle);
+  const rs=$('#mrResetBtn');if(rs)rs.addEventListener('click',mrReset);
+  const ex=$('#mrExport');if(ex)ex.addEventListener('click',()=>{try{const b=new Blob([JSON.stringify(mr,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='agent2-meanrev-account.json';a.click();}catch(e){}});
+  mrRender();}
+/* =================== end Agent 2 (mean-reversion) =================== */
+
+
 function afTick(){if(typeof af==='undefined'||!af)return;afRolloverDay();afHeartbeat();if(af.pos)afManage();else if(af.on&&!af.paused)afEvaluateEntry();afRender();}
 
 function afSetMode(m){if(m!=='long'&&m!=='short'&&m!=='both')return;af.mode=m;afLog('Mode set: '+(m==='long'?'long-only':m==='short'?'short-only':'long + short')+'.','info');afSave();afRender();}
@@ -2716,7 +2877,7 @@ async function fetchTick(){const sym=activeSym;const srcs=[
   {u:'https://www.okx.com/api/v5/market/ticker?instId='+sym+'-USDT',p:j=>(j&&j.data&&j.data[0])?+j.data[0].last:null,n:'OKX'},
   {u:'https://api.crypto.com/exchange/v1/public/get-tickers?instrument_name='+sym+'_USDT',p:j=>(j&&j.result&&j.result.data&&j.result.data[0])?+(j.result.data[0].a||j.result.data[0].k):null,n:'Crypto.com'}];
   for(const sc of srcs){try{const r=await fetch(sc.u,{cache:'no-store'});if(!r.ok)continue;const jj=await r.json();const p=sc.p(jj);if(p&&isFinite(p))return {price:p,src:sc.n};}catch(e){}}return null;}
-async function priceTick(){if(!state.live||priceBusy||wsConnected)return;priceBusy=true;try{const t=await fetchTick();if(t&&t.price){const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=t.price;if(t.price>last.high)last.high=t.price;if(t.price<last.low)last.low=t.price;}if(analysis)analysis.price=t.price;lastPriceTs=Date.now();lastPriceSrc=t.src;updateHeader();if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof checkLineAlerts==='function')checkLineAlerts();}}catch(e){}priceBusy=false;updateLiveStat();}
+async function priceTick(){if(!state.live||priceBusy||wsConnected)return;priceBusy=true;try{const t=await fetchTick();if(t&&t.price){const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=t.price;if(t.price>last.high)last.high=t.price;if(t.price<last.low)last.low=t.price;}if(analysis)analysis.price=t.price;lastPriceTs=Date.now();lastPriceSrc=t.src;updateHeader();if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof mrTick==='function')mrTick();if(typeof checkLineAlerts==='function')checkLineAlerts();}}catch(e){}priceBusy=false;updateLiveStat();}
 function updateLiveStat(){const el=$('#liveStat');if(!el)return;if(!state.live){el.innerHTML='<span style="color:var(--dim)">offline \u2014 host on https for live price</span>';return;}if(!lastPriceTs){el.innerHTML='<span style="color:var(--gold)">\u25CF</span> connecting\u2026';return;}const ago=Math.round((Date.now()-lastPriceTs)/1000);const fresh=ago<40;el.innerHTML='<span style="color:'+(fresh?'var(--green)':'var(--red)')+'">\u25CF</span> '+(fresh?'live':'stale')+' \u00b7 '+(ago<2?'just now':ago+'s ago')+' \u00b7 '+lastPriceSrc;}
 setInterval(priceTick,5000);setInterval(updateLiveStat,1000);setTimeout(priceTick,1500);
 /* ---- real-time WebSocket price stream (Binance) with poll fallback ---- */
@@ -2725,7 +2886,7 @@ function stopWS(){try{if(priceWS){priceWS.onopen=priceWS.onmessage=priceWS.onerr
 function startWS(){if(!state.live)return;if(typeof WebSocket==='undefined')return;stopWS();const sym=activeSym;wsSym=sym;
   try{priceWS=new WebSocket('wss://stream.binance.com:9443/ws/'+sym.toLowerCase()+'usdt@trade');
     priceWS.onopen=function(){wsConnected=true;};
-    priceWS.onmessage=function(ev){try{const m=JSON.parse(ev.data);const p=+m.p;if(!p||!isFinite(p))return;wsConnected=true;lastPriceTs=Date.now();lastPriceSrc='Binance \u00b7 stream';const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=p;if(p>last.high)last.high=p;if(p<last.low)last.low=p;}if(analysis)analysis.price=p;const el=$('#price');if(el)el.textContent='$'+fmt(p,p<1?6:2);const now=Date.now();if(now-demoThrottle>=1000){demoThrottle=now;if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof checkLineAlerts==='function')checkLineAlerts();updateLiveStat();}}catch(e){}};
+    priceWS.onmessage=function(ev){try{const m=JSON.parse(ev.data);const p=+m.p;if(!p||!isFinite(p))return;wsConnected=true;lastPriceTs=Date.now();lastPriceSrc='Binance \u00b7 stream';const c=state.candles;if(c&&c.length){const last=c[c.length-1];last.close=p;if(p>last.high)last.high=p;if(p<last.low)last.low=p;}if(analysis)analysis.price=p;const el=$('#price');if(el)el.textContent='$'+fmt(p,p<1?6:2);const now=Date.now();if(now-demoThrottle>=1000){demoThrottle=now;if(typeof demoTick==='function')demoTick();if(typeof afTick==='function')afTick();if(typeof mrTick==='function')mrTick();if(typeof checkLineAlerts==='function')checkLineAlerts();updateLiveStat();}}catch(e){}};
     priceWS.onerror=function(){wsConnected=false;};
     priceWS.onclose=function(){wsConnected=false;};
   }catch(e){wsConnected=false;}}
@@ -3229,7 +3390,7 @@ function renderNowTool(){
     '<div class="pb-now-w">'+why+'</div>'+
     '<div class="pb-now-call">&#128073; Salman, abhi <b>'+tnames+'</b> use karne ka waqt \u2014 ye <b>chamak</b> rahe hain. <span style="color:var(--dim)">(Relevance hai \u2014 buy/sell signal nahi.)</span></div>';
 }
-function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();afInit();drawInit();bdInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
+function boot(){load();renderSessions();renderHeatmap();renderMajors();renderComparative();renderAltMeme();stPrefill();stPills();jInit();slogInit();demoInit();afInit();mrInit();drawInit();bdInit();tdInit();tryLiveMulti();setTimeout(obOpen,700);}
 boot();
 </script>
 </body>
