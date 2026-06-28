@@ -1127,7 +1127,7 @@
         <button id="afMode-both">Both</button>
       </span>
     </div>
-    <div class="af-tf">Running on: <span id="afTf">&mdash;</span> &middot; risk 1%/trade (1R) &middot; target +2R &middot; 1-hour life</div>
+    <div class="af-tf">Running on: <span id="afTf">&mdash;</span> &middot; risk 1%/trade (1R) &middot; <span id="afCfg">&mdash;</span></div>
     <div class="af-livewrap"><span id="afLive"></span></div>
 
     <div class="af-statgrid" id="afStats"></div>
@@ -1144,7 +1144,7 @@
       <div>
         <div class="af-sub">Activity log</div>
         <div class="af-feed" id="afFeed"></div>
-        <div class="af-note" style="margin-top:10px">Exit logic: <b>+2R TP</b> ya <b>−1R SL</b> jo pehle lage. Ghante par dono na lagein to <b>time-stop</b>. Profit &ge; $10 &rarr; foran band (greed se bachao). Profit &gt; 0 magar &lt; $10 aur bias+confluence abhi bhi qaayam &rarr; <b>ek</b> 1-hour extension (logged). Agent sirf tab chalta hai jab tab khula ho; data session ke beech save rehta hai.</div>
+        <div class="af-note" style="margin-top:10px">Exit logic: <b>+<span id="afNoteRR">&mdash;</span>R TP</b> ya <b>−1R SL</b> jo pehle lage. <span id="afNoteHold">&mdash;</span> par dono na lagein to <b>time-stop</b>. Profit &ge; $10 &rarr; foran band (greed se bachao). Profit &gt; 0 magar &lt; $10 aur bias+confluence abhi bhi qaayam &rarr; <b>ek</b> <span id="afNoteExt">&mdash;</span> extension (logged). Agent sirf tab chalta hai jab tab khula ho; data session ke beech save rehta hai.</div>
       </div>
     </div>
   </div>
@@ -2320,7 +2320,7 @@ function afDirFilters(dir){
   // 3 confluence
   const buys=a.sigs.filter(x=>x.t==='buy').length,sells=a.sigs.filter(x=>x.t==='sell').length;
   const cc=isL?buys:sells;
-  checks.push({k:'conf',label:'Confluence ≥ 4/5 '+(isL?'bullish':'bearish'),ok:cc>=AF_CONF_MIN,val:cc+'/5'});
+  checks.push({k:'conf',label:'Confluence ≥ '+AF_CONF_MIN+'/5 '+(isL?'bullish':'bearish'),ok:cc>=AF_CONF_MIN,val:cc+'/5'});
   // 4 opportunity & 5 risk (direction-neutral)
   const orr=(typeof oppRisk==='function')?oppRisk():null;const opp=orr?orr.opp:0,risk=orr?orr.risk:100;
   checks.push({k:'opp',label:'Opportunity ≥ 80/100',ok:opp>=AF_OPP_MIN,val:opp+'/100'});
@@ -2464,7 +2464,7 @@ function afRender(){
     else {s='ARMED · waiting for setup';col='var(--green)';}
     stt.textContent=s;stt.style.color=col;}
   const modeTxt=af.mode==='long'?'long-only':af.mode==='short'?'short-only':'long + short';
-  const tfEl=$('#afTf');if(tfEl)tfEl.textContent=(typeof state!=='undefined'?state.tf:'?')+' · '+activeSym+'USDT · '+modeTxt;
+  const tfEl=$('#afTf');if(tfEl)tfEl.textContent=(typeof state!=='undefined'?state.tf:'?')+' · '+activeSym+'USDT · '+modeTxt;const _h=AF_HOLD_MS/3600000;var _c=$('#afCfg');if(_c)_c.textContent='target +'+AF_RR+'R · '+_h+'-hour life';var _r=$('#afNoteRR');if(_r)_r.textContent=AF_RR;var _hd=$('#afNoteHold');if(_hd)_hd.textContent=_h+' ghante';var _e=$('#afNoteExt');if(_e)_e.textContent=_h+'-hour';
   // stats (overall)
   const st=afStats();const roi=(eq-af.start)/af.start*100;
   const sb=$('#afStats');if(sb)sb.innerHTML=
